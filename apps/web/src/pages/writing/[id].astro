@@ -1,0 +1,52 @@
+---
+import { getCollection, render } from 'astro:content';
+import MaturityBadge from '../../components/MaturityBadge.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  return articles.map((article) => ({ params: { id: article.id }, props: { article } }));
+}
+
+const { article } = Astro.props;
+const { Content } = await render(article);
+const publishedAt = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+}).format(article.data.publishedAt);
+---
+
+<BaseLayout
+  title={`${article.data.title} — InkBrain`}
+  description={article.data.summary}
+  section="writing"
+>
+  <article>
+    <header class="article-hero shell">
+      <a class="back-link" href="/writing/">← 返回技术写作</a>
+      <div class="article-hero-grid">
+        <span class="page-index">ARTICLE</span>
+        <div>
+          <h1>{article.data.title}</h1>
+          <p class="article-summary">{article.data.summary}</p>
+        </div>
+        <div class="article-side-meta">
+          <MaturityBadge value={article.data.maturity} demo={article.data.demo} />
+          <span>{article.data.topic}</span>
+          <time datetime={article.data.publishedAt.toISOString()}>{publishedAt}</time>
+          <span>{article.data.readingMinutes} 分钟阅读</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="article-prose">
+      <Content />
+    </div>
+
+    <aside class="related-block" aria-labelledby="related-title">
+      <h2 id="related-title">关联标识</h2>
+      <ul>{article.data.related.map((item: string) => <li>{item}</li>)}</ul>
+    </aside>
+  </article>
+</BaseLayout>

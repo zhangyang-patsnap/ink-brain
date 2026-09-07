@@ -1,0 +1,131 @@
+---
+import { getCollection } from 'astro:content';
+import ArrowLink from '../components/ArrowLink.astro';
+import MaturityBadge from '../components/MaturityBadge.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { frameworkTracks } from '../data/frameworks';
+import { destinations } from '../data/site';
+
+const articles = (await getCollection('articles', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf());
+const knowledge = (await getCollection('knowledge')).sort((a, b) => a.data.order - b.data.order);
+const featured = articles[0];
+---
+
+<BaseLayout section="home" bodyClass="home-page">
+  <section class="hero shell" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <h1 id="hero-title">把复杂系统，拆成可以验证的路径。</h1>
+      <p>
+        InkBrain 是一个关于 AI 应用架构、后端工程与框架实验的个人技术出版物。
+        这里区分想法、实现与证据，也记录每条技术路径真实的适用边界。
+      </p>
+      <p class="hero-signature">By InkBrain</p>
+    </div>
+
+    <figure class="hero-visual" aria-label="水墨与知识节点组成的抽象网络">
+      <img
+        src="/images/inkbrain-knowledge-network.png"
+        alt="水墨从左侧延伸为右侧的知识节点网络"
+        width="1536"
+        height="1024"
+        fetchpriority="high"
+      />
+    </figure>
+
+    <aside class="evidence-legend" aria-label="内容成熟度说明">
+      <strong>Evidence maturity</strong>
+      <ul>
+        <li><span class="legend-mark legend-mark-idea"></span>idea · 构思</li>
+        <li><span class="legend-mark legend-mark-studied"></span>studied · 已学习</li>
+        <li><span class="legend-mark legend-mark-implemented"></span>implemented · 已实现</li>
+        <li><span class="legend-mark legend-mark-verified"></span>verified · 已验证</li>
+      </ul>
+    </aside>
+  </section>
+
+  <section class="territory-section shell" aria-label="主要内容区域">
+    <div class="territory-route" aria-hidden="true"><span></span></div>
+    <div class="territories">
+      {destinations.map((destination, index) => (
+        <a class="territory" href={destination.href}>
+          <span class="territory-id">
+            <span>{destination.id}</span>
+            <span class="territory-number">{String(index + 1).padStart(2, '0')}</span>
+          </span>
+          <h2>{destination.label}</h2>
+          <p>{destination.description}</p>
+        </a>
+      ))}
+    </div>
+
+    <div class="demo-strip">
+      <span class="demo-label">示例内容</span>
+      <strong>如何设计可演化的 AI 应用后端</strong>
+      <MaturityBadge value="studied" demo />
+      <ArrowLink href={`/writing/${featured.id}/`} label="阅读示例" />
+    </div>
+  </section>
+
+  <section class="home-section shell" aria-labelledby="current-thread-title">
+    <header class="section-header">
+      <h2 id="current-thread-title">当前技术线索</h2>
+      <p>这组内容仅用于展示未来真实文章、知识节点与框架记录如何互相连接。</p>
+    </header>
+
+    <div class="home-editorial-grid">
+      <article class="featured-article">
+        <div class="featured-copy">
+          <MaturityBadge value={featured.data.maturity} demo={featured.data.demo} />
+          <h3>{featured.data.title}</h3>
+          <p>{featured.data.summary}</p>
+          <div class="featured-meta">
+            <span>{featured.data.topic}</span>
+            <span>{featured.data.readingMinutes} MIN READ</span>
+          </div>
+          <ArrowLink href={`/writing/${featured.id}/`} label="阅读全文" />
+        </div>
+        <div class="featured-visual" aria-hidden="true">
+          <img src="/images/inkbrain-knowledge-network.png" alt="" width="1536" height="1024" loading="lazy" />
+        </div>
+      </article>
+
+      <section class="index-panel" aria-labelledby="relation-index-title">
+        <h3 id="relation-index-title">关系索引</h3>
+        <ul class="relationship-list">
+          {knowledge.map((entry, index) => (
+            <li><span>{entry.data.title}</span><span>{String((index + 1) * 27).padStart(3, '0')}</span></li>
+          ))}
+        </ul>
+        <ArrowLink href="/knowledge/" label="探索全部关系" />
+      </section>
+
+      <aside class="statement-panel">
+        <blockquote>不是追求覆盖，<br />而是追求可以验证的最小完备。</blockquote>
+        <cite>INKBRAIN / EDITORIAL PRINCIPLE</cite>
+      </aside>
+    </div>
+  </section>
+
+  <section class="home-section shell" aria-labelledby="framework-register-title">
+    <header class="section-header">
+      <h2 id="framework-register-title">框架与生态注册表</h2>
+      <p>目录描述学习与实验方向。除非状态明确为可用，否则这里不会启动任何运行时。</p>
+    </header>
+    <div class="framework-register-header" aria-hidden="true">
+      <span>名称</span><span>定位</span><span>语言</span><span>状态</span><span>地址</span>
+    </div>
+    <ul class="framework-register">
+      {frameworkTracks.map((framework) => (
+        <li>
+          <a href={`/frameworks/${framework.slug}/`}>{framework.name}</a>
+          <small>{framework.focus}</small>
+          <span>{framework.language}</span>
+          <StatusBadge value={framework.status} />
+          <ArrowLink href={`/frameworks/${framework.slug}/`} label="查看" />
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

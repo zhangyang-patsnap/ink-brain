@@ -1,0 +1,10 @@
+id: crewai-python
+name: CrewAI Lab
+language: python
+framework: CrewAI
+status: planned
+port: 8101
+capabilities:
+  - task-orchestration
+  - delegation
+  - tool-calling

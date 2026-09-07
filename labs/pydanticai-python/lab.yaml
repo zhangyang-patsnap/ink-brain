@@ -1,0 +1,10 @@
+id: pydanticai-python
+name: PydanticAI Lab
+language: python
+framework: PydanticAI
+status: planned
+port: 8102
+capabilities:
+  - typed-dependencies
+  - structured-output
+  - tool-calling

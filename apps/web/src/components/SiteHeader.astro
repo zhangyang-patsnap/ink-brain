@@ -1,0 +1,70 @@
+---
+interface Props {
+  active: 'home' | 'writing' | 'knowledge' | 'frameworks' | 'tools' | 'about';
+}
+
+const { active } = Astro.props;
+const navItems = [
+  { id: 'home', label: '首页', href: '/' },
+  { id: 'writing', label: '技术写作', href: '/writing/' },
+  { id: 'knowledge', label: '知识地图', href: '/knowledge/' },
+  { id: 'frameworks', label: 'Framework Labs', href: '/frameworks/' },
+  { id: 'tools', label: '开发者工具', href: '/tools/' },
+  { id: 'about', label: '关于', href: '/about/' },
+] as const;
+---
+
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="brand" href="/" aria-label="InkBrain 首页">
+      <span class="brand-word">INKBRAIN</span><span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-note">技术写作 · 知识地图 · 工程实践</span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="主导航">
+      {navItems.map((item) => (
+        <a href={item.href} aria-current={active === item.id ? 'page' : undefined}>{item.label}</a>
+      ))}
+    </nav>
+
+    <div class="header-actions">
+      <button class="theme-toggle" type="button" aria-label="切换明暗主题" title="切换明暗主题">
+        <svg class="theme-icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.5"></circle>
+          <path d="M12 2v2.2M12 19.8V22M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2 12h2.2M19.8 12H22M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56"></path>
+        </svg>
+        <svg class="theme-icon theme-icon-dark" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 15.3A8.5 8.5 0 0 1 8.7 4a8.5 8.5 0 1 0 11.3 11.3Z"></path>
+        </svg>
+      </button>
+
+      <details class="mobile-nav">
+        <summary aria-label="打开主导航"><span></span><span></span></summary>
+        <nav aria-label="移动端主导航">
+          {navItems.map((item) => (
+            <a href={item.href} aria-current={active === item.id ? 'page' : undefined}>{item.label}</a>
+          ))}
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+<script>
+  const applyButtonState = (button: HTMLButtonElement) => {
+    const theme = document.documentElement.dataset.theme ?? 'light';
+    button.dataset.activeTheme = theme;
+    button.setAttribute('aria-label', theme === 'dark' ? '切换为浅色主题' : '切换为深色主题');
+    button.title = theme === 'dark' ? '切换为浅色主题' : '切换为深色主题';
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('.theme-toggle').forEach((button) => {
+    applyButtonState(button);
+    button.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('inkbrain-theme', next);
+      applyButtonState(button);
+    });
+  });
+</script>

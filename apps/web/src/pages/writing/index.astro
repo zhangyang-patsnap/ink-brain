@@ -1,0 +1,25 @@
+---
+import { getCollection } from 'astro:content';
+import ArticleRow from '../../components/ArticleRow.astro';
+import PageIntro from '../../components/PageIntro.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const articles = (await getCollection('articles', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf());
+---
+
+<BaseLayout
+  title="技术写作 — InkBrain"
+  description="围绕 AI 应用架构、后端工程与运行时边界的技术文章。"
+  section="writing"
+>
+  <PageIntro
+    title="技术写作"
+    description="每篇文章回答一个完整工程问题：边界是什么、如何实现、怎样失败，以及什么证据足以支撑结论。"
+    index="WRITING / 01"
+    note="当前条目均为版式 Demo，可直接替换为真实文章。"
+  />
+  <section class="content-shell article-list" aria-label="文章列表">
+    {articles.map((article, index) => <ArticleRow article={article} featured={index === 0} />)}
+  </section>
+</BaseLayout>

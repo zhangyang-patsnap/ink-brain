@@ -1,0 +1,35 @@
+---
+import { getCollection } from 'astro:content';
+import MaturityBadge from '../../components/MaturityBadge.astro';
+import PageIntro from '../../components/PageIntro.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const entries = (await getCollection('knowledge')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout
+  title="知识地图 — InkBrain"
+  description="通过主题、成熟度和关联标识浏览 InkBrain 的技术知识。"
+  section="knowledge"
+>
+  <PageIntro
+    title="知识地图"
+    description="知识不只按发布时间排列。每个节点描述一个可以复用的概念，并连接文章、框架与相邻问题。"
+    index="KNOWLEDGE / 02"
+    note="第一阶段为静态索引；交互式关系图将在真实内容形成后实现。"
+  />
+
+  <section class="content-shell atlas" aria-label="知识节点">
+    {entries.map((entry) => (
+      <article class="atlas-node">
+        <span class="atlas-node-topic">{entry.data.topic}</span>
+        <h2>{entry.data.title}</h2>
+        <p>{entry.data.summary}</p>
+        <MaturityBadge value={entry.data.maturity} demo={entry.data.demo} />
+        <div class="relation-tags" aria-label="关联标识">
+          {entry.data.related.map((item) => <span>{item}</span>)}
+        </div>
+      </article>
+    ))}
+  </section>
+</BaseLayout>

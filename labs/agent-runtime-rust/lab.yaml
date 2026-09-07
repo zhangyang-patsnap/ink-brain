@@ -1,0 +1,10 @@
+id: agent-runtime-rust
+name: Agent Runtime Lab
+language: rust
+framework: Custom runtime
+status: planned
+port: 8105
+capabilities:
+  - event-runtime
+  - cancellation
+  - durable-state

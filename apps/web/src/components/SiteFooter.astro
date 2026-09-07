@@ -1,0 +1,27 @@
+---
+import { siteStats } from '../data/site';
+---
+
+<footer class="site-footer">
+  <div class="shell footer-grid">
+    <div class="footer-identity">
+      <span class="footer-seal" aria-hidden="true">IB</span>
+      <div>
+        <strong>InkBrain</strong>
+        <p>把复杂系统，拆成可以验证的路径。</p>
+      </div>
+    </div>
+    <nav aria-label="页脚导航">
+      <a href="/writing/">归档</a>
+      <a href="/knowledge/">索引</a>
+      <a href="/about/">关于</a>
+      <a href="/rss.xml">RSS</a>
+    </nav>
+    <div class="footer-stat" aria-label={`${siteStats.totalVisits.label}：${siteStats.totalVisits.value}，示例数据`}>
+      <span class="footer-stat-label">{siteStats.totalVisits.label}</span>
+      <strong>{siteStats.totalVisits.value}</strong>
+      <span class="footer-stat-status">{siteStats.totalVisits.status}</span>
+    </div>
+    <p class="footer-meta">Built with clarity.<br />Written with evidence.</p>
+  </div>
+</footer>

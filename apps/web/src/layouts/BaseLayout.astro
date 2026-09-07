@@ -1,0 +1,61 @@
+---
+import '@fontsource-variable/ibm-plex-sans';
+import '@fontsource-variable/noto-serif-sc';
+import '@fontsource/ibm-plex-mono/400.css';
+import '../styles/global.css';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import { siteMeta } from '../data/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  section?: 'home' | 'writing' | 'knowledge' | 'frameworks' | 'tools' | 'about';
+  bodyClass?: string;
+}
+
+const {
+  title = siteMeta.title,
+  description = siteMeta.description,
+  section = 'home',
+  bodyClass = '',
+} = Astro.props;
+
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f1eee5" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:site_name" content={siteMeta.name} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <link rel="alternate" type="application/rss+xml" title="InkBrain RSS" href="/rss.xml" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem('inkbrain-theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = stored === 'light' || stored === 'dark'
+          ? stored
+          : systemDark ? 'dark' : 'light';
+      })();
+    </script>
+  </head>
+  <body class={bodyClass}>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <SiteHeader active={section} />
+    <main id="main-content">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

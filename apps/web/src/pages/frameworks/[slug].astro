@@ -1,0 +1,77 @@
+---
+import ArrowLink from '../../components/ArrowLink.astro';
+import PageIntro from '../../components/PageIntro.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+import { frameworkTracks } from '../../data/frameworks';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  return frameworkTracks.map((framework) => ({
+    params: { slug: framework.slug },
+    props: { framework },
+  }));
+}
+
+const { framework } = Astro.props;
+---
+
+<BaseLayout
+  title={`${framework.name} — Framework Labs — InkBrain`}
+  description={framework.position}
+  section="frameworks"
+>
+  <PageIntro
+    title={framework.name}
+    description={framework.position}
+    index={`LAB / ${framework.language.toUpperCase()}`}
+    note={framework.runtimeBoundary}
+  />
+
+  <div class="content-shell">
+    <a class="back-link" href="/frameworks/">← 返回 Framework Labs</a>
+    <div class="framework-detail">
+      <aside class="framework-aside" aria-label="框架元数据">
+        <dl>
+          <div><dt>LANGUAGE</dt><dd>{framework.language}</dd></div>
+          <div><dt>FOCUS</dt><dd>{framework.focus}</dd></div>
+          <div><dt>STATUS</dt><dd><StatusBadge value={framework.status} /></dd></div>
+          <div><dt>RUNTIME</dt><dd>Not available</dd></div>
+        </dl>
+      </aside>
+
+      <div class="framework-copy">
+        <section>
+          <h2>核心概念</h2>
+          <ul class="concept-list">
+            {framework.concepts.map((concept: string, index: number) => (
+              <li data-index={String(index + 1).padStart(2, '0')}>{concept}</li>
+            ))}
+          </ul>
+        </section>
+
+        <section>
+          <h2>计划实验</h2>
+          <p>以下项目是内容规划，不代表实验已经实现或验证。</p>
+          <ul class="experiment-list">
+            {framework.experiments.map((experiment: string, index: number) => (
+              <li data-index={String(index + 1).padStart(2, '0')}>{experiment}</li>
+            ))}
+          </ul>
+        </section>
+
+        <section>
+          <h2>运行时边界</h2>
+          <p>{framework.runtimeBoundary}</p>
+          <ArrowLink href="/about/" label="查看项目原则" />
+        </section>
+
+        <section>
+          <h2>关联标识</h2>
+          <div class="relation-tags">
+            {framework.related.map((item: string) => <span>{item}</span>)}
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

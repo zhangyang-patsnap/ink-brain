@@ -1,0 +1,10 @@
+id: langgraph-python
+name: LangGraph Lab
+language: python
+framework: LangGraph
+status: planned
+port: 8103
+capabilities:
+  - state-graph
+  - checkpoint
+  - human-in-the-loop

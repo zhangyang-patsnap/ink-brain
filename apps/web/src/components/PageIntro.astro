@@ -1,0 +1,19 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  index: string;
+  note?: string;
+}
+
+const { title, description, index, note } = Astro.props;
+---
+
+<header class="page-intro shell">
+  <div class="page-index" aria-hidden="true">{index}</div>
+  <div class="page-intro-copy">
+    <h1>{title}</h1>
+    <p>{description}</p>
+  </div>
+  {note && <p class="page-intro-note">{note}</p>}
+</header>

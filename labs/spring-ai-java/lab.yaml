@@ -1,0 +1,10 @@
+id: spring-ai-java
+name: Spring AI Lab
+language: java
+framework: Spring AI
+status: planned
+port: 8104
+capabilities:
+  - enterprise-integration
+  - advisor-chain
+  - tool-calling

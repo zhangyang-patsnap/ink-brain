@@ -1,0 +1,14 @@
+---
+import { maturityLabels } from '../data/site';
+
+interface Props {
+  value: keyof typeof maturityLabels;
+  demo?: boolean;
+}
+
+const { value, demo = false } = Astro.props;
+---
+
+<span class:list={['maturity-badge', `maturity-${value}`]}>
+  <span class="status-dot" aria-hidden="true"></span>{maturityLabels[value]}{demo ? ' · 示例' : ''}
+</span>

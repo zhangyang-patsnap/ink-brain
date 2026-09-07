@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inkbrain.example/schemas/lab.schema.json",
+  "title": "InkBrain Lab Manifest",
+  "type": "object",
+  "required": ["id", "name", "language", "framework", "status", "port", "capabilities"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "language": { "enum": ["java", "python", "rust"] },
+    "framework": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["planned", "documented", "available"] },
+    "port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+    "start": { "type": "string" },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

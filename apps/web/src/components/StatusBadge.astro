@@ -1,0 +1,10 @@
+---
+interface Props {
+  value: 'planned' | 'documented';
+}
+
+const { value } = Astro.props;
+const labels = { planned: '规划中', documented: '边界已记录' };
+---
+
+<span class:list={['status-badge', `status-${value}`]}><span aria-hidden="true"></span>{labels[value]}</span>

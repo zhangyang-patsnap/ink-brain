@@ -1,0 +1,45 @@
+---
+import PageIntro from '../../components/PageIntro.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="关于 — InkBrain"
+  description="InkBrain 的内容边界、证据原则与技术方向。"
+  section="about"
+>
+  <PageIntro
+    title="关于 InkBrain"
+    description="它不是履历陈列，也不是框架百科，而是一份持续生长的工程研究出版物。"
+    index="ABOUT / 05"
+    note="作者姓名、头像与公开链接等待真实资料后补充。"
+  />
+
+  <div class="content-shell about-grid">
+    <p class="about-statement">复杂系统值得被解释，但只有留下边界、失败路径和证据，解释才真正有用。</p>
+    <div class="about-copy">
+      <section>
+        <h2>这里记录什么</h2>
+        <p>
+          InkBrain 聚焦 AI 应用架构、后端工程、框架学习与小型开发者工具。文章回答完整问题，
+          知识节点连接可复用概念，Framework Labs 则为未来可以独立验证的实验保留边界。
+        </p>
+      </section>
+      <section>
+        <h2>内容原则</h2>
+        <ol class="about-principles">
+          <li>区分构思、学习、实现、验证与生产证据。</li>
+          <li>优先呈现源码、测试、Trace、失败案例与可复现实验。</li>
+          <li>不把目录占位描述成已经可运行的系统。</li>
+          <li>让文章、知识、框架和实验通过稳定标识形成关系。</li>
+        </ol>
+      </section>
+      <section>
+        <h2>当前阶段</h2>
+        <p>
+          第一阶段只交付网站 UI、项目骨架和可替换 Demo 内容。真实模块会在内容和验证材料准备好之后逐个实现。
+        </p>
+      </section>
+    </div>
+  </div>
+</BaseLayout>
