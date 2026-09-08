@@ -1,7 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import ArrowLink from './ArrowLink.astro';
-import MaturityBadge from './MaturityBadge.astro';
+import { getArticleTag } from '../data/taxonomy';
 
 interface Props {
   article: CollectionEntry<'articles'>;
@@ -15,14 +15,18 @@ const date = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit
 
 <article class:list={['article-row', featured && 'article-row-featured']}>
   <div class="article-row-meta">
-    <span>{article.data.topic}</span>
+    <span>ARTICLE</span>
     <time datetime={article.data.publishedAt.toISOString()}>{date}</time>
   </div>
   <div class="article-row-body">
     <h2><a href={`/writing/${article.id}/`}>{article.data.title}</a></h2>
     <p>{article.data.summary}</p>
+    <div class="taxonomy-links" aria-label="文章标签">
+      {article.data.tags.map((tag) => (
+        <a href={`/writing/tag/${tag}/`}>#{getArticleTag(tag)?.label ?? tag}</a>
+      ))}
+    </div>
     <div class="article-row-foot">
-      <MaturityBadge value={article.data.maturity} demo={article.data.demo} />
       <span>{article.data.readingMinutes} 分钟阅读</span>
       <ArrowLink href={`/writing/${article.id}/`} label="阅读全文" />
     </div>

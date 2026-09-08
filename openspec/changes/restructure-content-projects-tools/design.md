@@ -36,7 +36,7 @@ Each article receives one category from a small centralized catalog, zero or mor
 
 ### Knowledge becomes topic-led
 
-Knowledge entries become topic hubs with a thesis, learning-path steps, key concepts, and typed references to articles, Labs, projects, and tools. The first release uses editorial columns and relationship registers rather than an interactive graph; this remains useful with four Demo topics and scales as content grows.
+Knowledge entries become topic hubs with a thesis, learning-path steps, key concepts, and typed references to articles, Labs, projects, and tools. The index remains a scannable topic preview and links to stable topic detail routes where the complete path and grouped relationships live. The first release uses editorial columns and relationship registers rather than an interactive graph; this remains useful with four Demo topics and scales as content grows.
 
 ### Projects and tools use typed static manifests
 

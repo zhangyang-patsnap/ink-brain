@@ -2,14 +2,11 @@
 title: 构建可演化的 AI 应用架构
 summary: 从边界、契约与失败路径出发，为会持续变化的 AI 系统保留可验证性。
 publishedAt: 2026-08-28
-topic: AI Architecture
-maturity: studied
-related:
-  - knowledge:typed-contracts
-  - knowledge:runtime-observability
-  - framework:langgraph-python
+tags:
+  - agent-systems
+  - runtime-protocol
+  - failure-design
 readingMinutes: 12
-demo: true
 ---
 
 > 本文为版式与内容结构示例，后续可直接替换为真实案例。

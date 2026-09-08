@@ -15,10 +15,11 @@ const articles = (await getCollection('articles', ({ data }) => !data.draft))
 >
   <PageIntro
     title="技术写作"
-    description="每篇文章回答一个完整工程问题：边界是什么、如何实现、怎样失败，以及什么证据足以支撑结论。"
+    description="关于 AI 应用、后端系统与运行时的技术文章，从设计思路写到实现与复盘。"
     index="WRITING / 01"
-    note="当前条目均为版式 Demo，可直接替换为真实文章。"
+    note="记录实践，也记录尚未解答的问题。"
   />
+
   <section class="content-shell article-list" aria-label="文章列表">
     {articles.map((article, index) => <ArticleRow article={article} featured={index === 0} />)}
   </section>

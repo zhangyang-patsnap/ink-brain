@@ -1,27 +1,30 @@
 ---
 import { getCollection } from 'astro:content';
 import ArrowLink from '../components/ArrowLink.astro';
-import MaturityBadge from '../components/MaturityBadge.astro';
-import StatusBadge from '../components/StatusBadge.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { frameworkTracks } from '../data/frameworks';
-import { destinations } from '../data/site';
+import { ownedProjects } from '../data/projects';
+import { destinations, siteMeta } from '../data/site';
+import { getArticleTag } from '../data/taxonomy';
+import { softwareTools, toolKindLabels } from '../data/tools';
 
 const articles = (await getCollection('articles', ({ data }) => !data.draft))
   .sort((a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf());
 const knowledge = (await getCollection('knowledge')).sort((a, b) => a.data.order - b.data.order);
 const featured = articles[0];
+const featuredTag = featured?.data.tags[0] && getArticleTag(featured.data.tags[0]);
+const featuredProject = ownedProjects[0];
+const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').slice(0, 3);
 ---
 
 <BaseLayout section="home" bodyClass="home-page">
   <section class="hero shell" aria-labelledby="hero-title">
     <div class="hero-copy">
-      <h1 id="hero-title">把复杂系统，拆成可以验证的路径。</h1>
+      <h1 id="hero-title">{siteMeta.tagline}</h1>
       <p>
-        InkBrain 是一个关于 AI 应用架构、后端工程与框架实验的个人技术出版物。
-        这里区分想法、实现与证据，也记录每条技术路径真实的适用边界。
+        {siteMeta.intro.split('\n').map((line, index) => <>{index > 0 && <br />}{line}</>)}
       </p>
-      <p class="hero-signature">By InkBrain</p>
+      <p class="hero-signature">By {siteMeta.author}</p>
+      <div class="hero-entry-actions"><ArrowLink href="/writing/" label="开始阅读" /><a href="/projects/">看看我的项目</a></div>
     </div>
 
     <figure class="hero-visual" aria-label="水墨与知识节点组成的抽象网络">
@@ -60,28 +63,21 @@ const featured = articles[0];
       ))}
     </div>
 
-    <div class="demo-strip">
-      <span class="demo-label">示例内容</span>
-      <strong>如何设计可演化的 AI 应用后端</strong>
-      <MaturityBadge value="studied" demo />
-      <ArrowLink href={`/writing/${featured.id}/`} label="阅读示例" />
-    </div>
   </section>
 
-  <section class="home-section shell" aria-labelledby="current-thread-title">
+  <section class="home-section shell" aria-labelledby="latest-content-title">
     <header class="section-header">
-      <h2 id="current-thread-title">当前技术线索</h2>
-      <p>这组内容仅用于展示未来真实文章、知识节点与框架记录如何互相连接。</p>
+      <h2 id="latest-content-title">最新内容</h2>
+      <p>先读一篇文章，再从专题进入完整的阅读与实践路径。</p>
     </header>
 
     <div class="home-editorial-grid">
-      <article class="featured-article">
+      {featured && <article class="featured-article">
         <div class="featured-copy">
-          <MaturityBadge value={featured.data.maturity} demo={featured.data.demo} />
           <h3>{featured.data.title}</h3>
           <p>{featured.data.summary}</p>
           <div class="featured-meta">
-            <span>{featured.data.topic}</span>
+            {featuredTag && <span>#{featuredTag.label}</span>}
             <span>{featured.data.readingMinutes} MIN READ</span>
           </div>
           <ArrowLink href={`/writing/${featured.id}/`} label="阅读全文" />
@@ -89,43 +85,37 @@ const featured = articles[0];
         <div class="featured-visual" aria-hidden="true">
           <img src="/images/inkbrain-knowledge-network.png" alt="" width="1536" height="1024" loading="lazy" />
         </div>
-      </article>
+      </article>}
 
-      <section class="index-panel" aria-labelledby="relation-index-title">
-        <h3 id="relation-index-title">关系索引</h3>
+      <section class="index-panel" aria-labelledby="topic-reading-title">
+        <h3 id="topic-reading-title">专题阅读</h3>
         <ul class="relationship-list">
           {knowledge.map((entry, index) => (
-            <li><span>{entry.data.title}</span><span>{String((index + 1) * 27).padStart(3, '0')}</span></li>
+            <li><a href={`/knowledge/${entry.id}/`}>{entry.data.title}</a><span>{entry.data.items.length} 项</span><span>{String(index + 1).padStart(2, '0')}</span></li>
           ))}
         </ul>
-        <ArrowLink href="/knowledge/" label="探索全部关系" />
+        <ArrowLink href="/knowledge/" label="查看全部专题" />
       </section>
-
-      <aside class="statement-panel">
-        <blockquote>不是追求覆盖，<br />而是追求可以验证的最小完备。</blockquote>
-        <cite>INKBRAIN / EDITORIAL PRINCIPLE</cite>
-      </aside>
     </div>
   </section>
 
-  <section class="home-section shell" aria-labelledby="framework-register-title">
+  <section class="home-section shell" aria-labelledby="build-register-title">
     <header class="section-header">
-      <h2 id="framework-register-title">框架与生态注册表</h2>
-      <p>目录描述学习与实验方向。除非状态明确为可用，否则这里不会启动任何运行时。</p>
+      <h2 id="build-register-title">项目与工具</h2>
+      <p>这里记录自研项目，也提供可以直接获取和使用的小型工具。</p>
     </header>
-    <div class="framework-register-header" aria-hidden="true">
-      <span>名称</span><span>定位</span><span>语言</span><span>状态</span><span>地址</span>
+    <div class="home-build-grid">
+      {featuredProject && <article class="home-project-feature">
+        <div class="catalog-eyebrow"><span>OWNED PROJECT</span><span>{featuredProject.demo ? 'DEMO' : featuredProject.status.toUpperCase()}</span></div>
+        <h3>{featuredProject.name}</h3><p>{featuredProject.tagline}</p>
+        <div class="stack-register">{featuredProject.stack.map((item) => <span>{item}</span>)}</div>
+        <ArrowLink href={`/projects/${featuredProject.slug}/`} label="了解项目" />
+      </article>}
+      <section class="home-tool-register" aria-labelledby="home-tools-title">
+        <h3 id="home-tools-title">SOFTWARE MARKET</h3>
+        <ul>{featuredTools.map((tool) => <li><div><span>{toolKindLabels[tool.kind]}</span><a href={`/tools/${tool.slug}/`}>{tool.name}</a></div><small>{tool.release.version}</small><strong>{tool.availability.toUpperCase()}</strong></li>)}</ul>
+        <ArrowLink href="/tools/" label="打开工具市场" />
+      </section>
     </div>
-    <ul class="framework-register">
-      {frameworkTracks.map((framework) => (
-        <li>
-          <a href={`/frameworks/${framework.slug}/`}>{framework.name}</a>
-          <small>{framework.focus}</small>
-          <span>{framework.language}</span>
-          <StatusBadge value={framework.status} />
-          <ArrowLink href={`/frameworks/${framework.slug}/`} label="查看" />
-        </li>
-      ))}
-    </ul>
   </section>
 </BaseLayout>

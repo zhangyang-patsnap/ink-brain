@@ -1,83 +1,52 @@
 ---
+import ArrowLink from '../../components/ArrowLink.astro';
 import PageIntro from '../../components/PageIntro.astro';
+import { softwareTools, toolKindLabels } from '../../data/tools';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
-const exampleInput = `{"service":"inkbrain","runtime":{"language":"rust","status":"planned"},"evidence":["typed-contract","terminal-event"]}`;
-const exampleOutput = `{
-  "service": "inkbrain",
-  "runtime": {
-    "language": "rust",
-    "status": "planned"
-  },
-  "evidence": [
-    "typed-contract",
-    "terminal-event"
-  ]
-}`;
+const downloadableTools = softwareTools.filter((tool) => tool.kind !== 'web-tool');
+const webTools = softwareTools.filter((tool) => tool.kind === 'web-tool');
+const featured = downloadableTools[0];
 ---
 
-<BaseLayout
-  title="开发者工具 — InkBrain"
-  description="浏览器本地优先的工程工具设计与未来扩展边界。"
-  section="tools"
->
+<BaseLayout title="工具市场 — InkBrain" description="获取 InkBrain 的 macOS 应用、CLI、插件与在线小工具。" section="tools">
   <PageIntro
-    title="开发者工具"
-    description="小而精确的工作面。第一阶段只确定工具体验、状态语言与扩展结构，所有操作暂不执行。"
-    index="TOOLS / 04"
-    note="以下 JSON Formatter 是 UI Demo，不会解析、复制或传输任何输入。"
+    title="工具市场"
+    description="为日常开发省一点时间。发现适合你的 macOS 应用、命令行工具与编辑器插件。"
+    index="TOOLS / 05"
+    note={softwareTools.length === 0 ? '工具正在整理中。' : softwareTools.every(tool => tool.availability === 'demo') ? '当前软件均为展示示例，尚未开放下载。' : '下载前请查看系统要求、版本说明与校验信息。'}
   />
 
-  <section class="content-shell" aria-labelledby="formatter-title">
-    <h2 id="formatter-title" class="visually-hidden">JSON Formatter UI Demo</h2>
-    <div class="tool-workbench">
-      <div class="tool-demo-notice" role="note">
-        <strong>UI DEMO</strong>
-        <p>用于确认编辑器布局、控件层级和状态表达。按钮当前不可用，功能将在后续模块阶段实现。</p>
-      </div>
-      <div class="tool-toolbar" aria-label="演示操作">
-        <button type="button" disabled>Format</button>
-        <button type="button" disabled>Minify</button>
-        <button type="button" disabled>Copy</button>
-        <button type="button" disabled>Clear</button>
-        <span>LOCAL-ONLY / NOT IMPLEMENTED</span>
-      </div>
-      <div class="tool-panels">
-        <div class="tool-panel">
-          <label for="json-input"><span>INPUT</span><span>138 BYTES</span></label>
-          <textarea id="json-input" readonly spellcheck="false" aria-describedby="demo-description">{exampleInput}</textarea>
-        </div>
-        <div class="tool-panel">
-          <label for="json-output"><span>OUTPUT PREVIEW</span><span>2 SPACES</span></label>
-          <textarea id="json-output" readonly spellcheck="false">{exampleOutput}</textarea>
-        </div>
-      </div>
+  {featured && <section class="content-shell market-feature" aria-labelledby="featured-tool-title">
+    <div class="tool-mark" aria-hidden="true">{featured.monogram}</div>
+    <div class="market-feature-copy">
+      <div class="catalog-eyebrow"><span>FEATURED / {toolKindLabels[featured.kind]}</span><span>{featured.availability.toUpperCase()}</span></div>
+      <h2 id="featured-tool-title">{featured.name}</h2>
+      <p>{featured.summary}</p>
+      <div class="release-inline"><span>{featured.platform}</span><span>v{featured.release.version}</span><span>{featured.release.packageFormat}</span></div>
     </div>
-    <p id="demo-description" class="visually-hidden">当前输入和输出均为静态演示数据。</p>
-
-    <div class="tool-states" aria-label="状态设计示例">
-      <div class="tool-state">
-        <strong>EMPTY</strong>
-        <p>输入为空时保留安静的编辑区域，并解释数据只在浏览器中处理。</p>
-      </div>
-      <div class="tool-state tool-state-error">
-        <strong>INVALID JSON</strong>
-        <p>错误需要指出位置、保留原始输入，并提供可被键盘访问的恢复路径。</p>
-      </div>
-      <div class="tool-state">
-        <strong>READY</strong>
-        <p>输出完成后再开放复制动作，并通过状态区域宣布结果。</p>
-      </div>
+    <div class="market-feature-action">
+      <span>{featured.availability === 'available' ? '已发布' : '尚未开放下载'}</span>
+      <ArrowLink href={`/tools/${featured.slug}/`} label="查看发布详情" />
     </div>
+  </section>}
 
-    <section class="planned-tools" aria-labelledby="planned-title">
-      <h2 id="planned-title">后续工具方向</h2>
-      <ul>
-        <li><span>JSON Diff</span><small>planned</small></li>
-        <li><span>Timestamp Converter</span><small>planned</small></li>
-        <li><span>JWT Inspector</span><small>planned</small></li>
-        <li><span>Prompt Contract Debugger</span><small>planned / server boundary</small></li>
-      </ul>
-    </section>
+  <section class="content-shell market-section" aria-labelledby="downloadable-title">
+    <header class="market-section-header"><div><span class="section-kicker">MORE TOOLS</span><h2 id="downloadable-title">更多工具</h2></div><p>找到适合终端与编辑器的工作助手。</p></header>
+    <div class="software-register">
+      {downloadableTools.filter((tool) => tool.slug !== featured?.slug).map((tool) => (
+        <article>
+          <div class="tool-mark small" aria-hidden="true">{tool.monogram}</div>
+          <div><span class="software-kind">{toolKindLabels[tool.kind]} · {tool.platform}</span><h3><a href={`/tools/${tool.slug}/`}>{tool.name}</a></h3><p>{tool.summary}</p></div>
+          <dl><div><dt>VERSION</dt><dd>{tool.release.version}</dd></div><div><dt>STATUS</dt><dd>{tool.availability.toUpperCase()}</dd></div></dl>
+          <ArrowLink href={`/tools/${tool.slug}/`} label="详情" />
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="content-shell market-section web-tools-section" aria-labelledby="web-tools-title">
+    <header class="market-section-header"><div><span class="section-kicker">BROWSER UTILITIES</span><h2 id="web-tools-title">在线工具</h2></div><p>无需安装的浏览器工具。目前提供界面预览。</p></header>
+    <div class="web-tool-register">{webTools.map((tool) => <a href={`/tools/${tool.slug}/`}><span>{tool.name}</span><small>{tool.summary}</small><strong>UI DEMO ↗</strong></a>)}</div>
   </section>
 </BaseLayout>

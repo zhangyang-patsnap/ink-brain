@@ -1,35 +1,43 @@
-import { defineCollection } from 'astro:content';
-import { glob } from 'astro/loaders';
-import { z } from 'astro/zod';
+import { defineCollection } from "astro:content";
+import { glob } from "astro/loaders";
+import { z } from "astro/zod";
+import { articleTagSlugs } from "./data/taxonomy";
+import { topicItems } from "./lib/topic-items.mjs";
 
-const maturity = z.enum(['idea', 'studied', 'implemented', 'verified', 'production']);
+const knownArticleTags = new Set<string>(articleTagSlugs);
 
 const articles = defineCollection({
-  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/articles' }),
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/articles" }),
   schema: z.object({
     title: z.string(),
     summary: z.string(),
     publishedAt: z.coerce.date(),
-    topic: z.string(),
-    maturity,
-    related: z.array(z.string()).default([]),
+    tags: z
+      .array(
+        z.string().refine((tag) => knownArticleTags.has(tag), "未知文章标签"),
+      )
+      .default([]),
     readingMinutes: z.number().int().positive(),
-    demo: z.boolean().default(true),
     draft: z.boolean().default(false),
   }),
 });
 
 const knowledge = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/knowledge' }),
-  schema: z.object({
-    title: z.string(),
-    summary: z.string(),
-    order: z.number().int().nonnegative(),
-    topic: z.string(),
-    maturity,
-    related: z.array(z.string()).default([]),
-    demo: z.boolean().default(true),
-  }),
+  loader: glob({ pattern: "**/*.md", base: "./src/content/knowledge" }),
+  schema: z.preprocess(
+    (data) => ({ ...(data as object), items: topicItems(data) }),
+    z.object({
+      title: z.string(),
+      summary: z.string(),
+      order: z.number().int().nonnegative().default(0),
+      items: z.array(
+        z.object({
+          kind: z.enum(["articles", "projects", "tools"]),
+          id: z.string(),
+        }),
+      ),
+    }),
+  ),
 });
 
 export const collections = { articles, knowledge };

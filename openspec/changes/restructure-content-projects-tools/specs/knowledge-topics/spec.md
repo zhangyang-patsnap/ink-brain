@@ -14,6 +14,13 @@ Each knowledge topic SHALL support explicit references to articles, framework La
 - **WHEN** a visitor inspects a topic hub
 - **THEN** available related artifacts are grouped by domain and link to their canonical pages
 
+### Requirement: Progressive topic disclosure
+The knowledge index SHALL provide scannable topic previews and each topic SHALL have a stable detail route for its complete learning path and grouped relationships.
+
+#### Scenario: Move from index to topic detail
+- **WHEN** a visitor selects a topic preview
+- **THEN** the corresponding topic detail page presents the full thesis, concepts, learning path, and resolvable cross-domain links
+
 ### Requirement: Useful sparse state
 The topic-hub design SHALL remain understandable and useful before a large content graph exists.
 

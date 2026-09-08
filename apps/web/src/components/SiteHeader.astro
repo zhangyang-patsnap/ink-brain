@@ -1,15 +1,15 @@
 ---
 interface Props {
-  active: 'home' | 'writing' | 'knowledge' | 'frameworks' | 'tools' | 'about';
+  active: 'home' | 'writing' | 'knowledge' | 'projects' | 'tools' | 'about';
 }
 
 const { active } = Astro.props;
 const navItems = [
   { id: 'home', label: '首页', href: '/' },
-  { id: 'writing', label: '技术写作', href: '/writing/' },
-  { id: 'knowledge', label: '知识地图', href: '/knowledge/' },
-  { id: 'frameworks', label: 'Framework Labs', href: '/frameworks/' },
-  { id: 'tools', label: '开发者工具', href: '/tools/' },
+  { id: 'writing', label: '文章', href: '/writing/' },
+  { id: 'knowledge', label: '专题', href: '/knowledge/' },
+  { id: 'projects', label: '项目', href: '/projects/' },
+  { id: 'tools', label: '工具', href: '/tools/' },
   { id: 'about', label: '关于', href: '/about/' },
 ] as const;
 ---
@@ -18,7 +18,7 @@ const navItems = [
   <div class="shell header-inner">
     <a class="brand" href="/" aria-label="InkBrain 首页">
       <span class="brand-word">INKBRAIN</span><span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-note">技术写作 · 知识地图 · 工程实践</span>
+      <span class="brand-note">写作 · 专题 · 实验 · 作品</span>
     </a>
 
     <nav class="desktop-nav" aria-label="主导航">

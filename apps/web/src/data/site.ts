@@ -1,9 +1,5 @@
-export const siteMeta = {
-  name: 'InkBrain',
-  title: 'InkBrain — 可验证的技术路径',
-  description: '关于 AI 应用架构、后端工程、Framework Labs 与开发者工具的个人技术出版物。',
-  author: 'InkBrain',
-};
+import settings from './settings.json';
+export const siteMeta = settings;
 
 export const siteStats = {
   totalVisits: {
@@ -21,22 +17,22 @@ export const destinations = [
     description: '从原理到实现，记录完整工程问题。',
   },
   {
-    label: '知识地图',
+    label: '知识专题',
     id: 'KNOWLEDGE',
     href: '/knowledge/',
-    description: '按领域与关系浏览，而非只看时间线。',
+    description: '从主题、概念与学习路径进入知识。',
   },
   {
-    label: 'Framework Labs',
-    id: 'LABS',
-    href: '/frameworks/',
-    description: '比较框架边界，明确实验与运行状态。',
+    label: '项目作品',
+    id: 'PROJECTS',
+    href: '/projects/',
+    description: '了解自研框架、应用与库的设计和进展。',
   },
   {
-    label: '开发者工具',
+    label: '工具市场',
     id: 'TOOLS',
     href: '/tools/',
-    description: '面向日常工程任务的精确工作面。',
+    description: '获取 macOS 应用、CLI、插件与在线小工具。',
   },
 ] as const;
 

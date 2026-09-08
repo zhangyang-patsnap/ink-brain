@@ -16,6 +16,10 @@ InkBrain is primarily authored by a senior backend engineer working across Java,
 
 ## Product Purpose
 
+Visitor navigation uses five primary entries: Articles, Topics, Projects, Tools, and About. Framework experiments remain accessible within Topics and from the homepage. Index pages prioritize content above introductory copy; unpublished examples use brief, explicit availability labels.
+
+The current information architecture separates Writing (articles connected by tags), Knowledge (topic hubs that organize reading and practice), Projects (owned systems including self-developed Agent frameworks), and Tools (downloadable software with secondary browser utilities). Software release records remain Demo until real artifacts are supplied.
+
 InkBrain is a personal technical publication and navigable knowledge system. It gives technical writing, knowledge domains, framework studies, future independent Labs, and developer utilities one coherent home. Success means a reader can understand the author's focus quickly, follow relationships between topics, and distinguish plans from implemented or verified work.
 
 ## Positioning

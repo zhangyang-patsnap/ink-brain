@@ -2,14 +2,11 @@
 title: 用类型约束 Agent 与工具的协作
 summary: 让工具输入、模型输出和失败反馈都成为可检查的工程契约。
 publishedAt: 2026-08-04
-topic: Agent Engineering
-maturity: implemented
-related:
-  - knowledge:agent-orchestration
-  - knowledge:typed-contracts
-  - framework:pydanticai-python
+tags:
+  - agent-systems
+  - typed-contracts
+  - failure-design
 readingMinutes: 10
-demo: true
 ---
 
 > 本文为 Demo 内容，`implemented` 仅用于展示状态样式，不代表真实项目证据。

@@ -1,6 +1,7 @@
 ---
 import PageIntro from '../../components/PageIntro.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { siteMeta } from '../../data/site';
 ---
 
 <BaseLayout
@@ -10,7 +11,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 >
   <PageIntro
     title="关于 InkBrain"
-    description="它不是履历陈列，也不是框架百科，而是一份持续生长的工程研究出版物。"
+    description={siteMeta.bio}
     index="ABOUT / 05"
     note="作者姓名、头像与公开链接等待真实资料后补充。"
   />
@@ -22,7 +23,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <h2>这里记录什么</h2>
         <p>
           InkBrain 聚焦 AI 应用架构、后端工程、框架学习与小型开发者工具。文章回答完整问题，
-          知识节点连接可复用概念，Framework Labs 则为未来可以独立验证的实验保留边界。
+          专题提供连续的学习与实践路径，项目与工具展示开发成果。
         </p>
       </section>
       <section>

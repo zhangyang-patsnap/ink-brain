@@ -2,13 +2,11 @@
 title: Rust Agent Runtime 的边界设计
 summary: 用类型、事件和所有权语言描述一个最小智能体运行时应承担什么。
 publishedAt: 2026-08-16
-topic: Rust Runtime
-maturity: idea
-related:
-  - knowledge:typed-contracts
-  - framework:agent-runtime-rust
+tags:
+  - agent-systems
+  - runtime-protocol
+  - rust
 readingMinutes: 9
-demo: true
 ---
 
 > 本文为 Demo 内容，不表示仓库中已有可运行的 Rust Agent Runtime。

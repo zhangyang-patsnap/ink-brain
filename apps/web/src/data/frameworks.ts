@@ -64,14 +64,14 @@ export const frameworkTracks: FrameworkTrack[] = [
   },
   {
     slug: 'agent-runtime-rust',
-    name: 'Agent Runtime',
+    name: 'Rust Runtime Study',
     language: 'Rust',
     focus: 'Runtime and event semantics',
     status: 'planned',
-    position: '探索低层运行控制、事件协议与性能边界。',
+    position: '作为独立 Lab 研究低层运行控制、事件协议与性能边界。',
     concepts: ['Run state', 'Cancellation', 'SSE', 'Resource ownership'],
     experiments: ['终态事件', '背压', '取消传播'],
-    runtimeBoundary: '当前仅有设计清单，不存在可运行 Runtime。',
+    runtimeBoundary: '当前仅有研究清单，不代表自研产品，也不存在可运行 Runtime。',
     related: ['knowledge:runtime-observability', 'article:rust-runtime-boundaries'],
   },
 ];

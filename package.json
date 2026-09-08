@@ -6,6 +6,8 @@
     "apps/*"
   ],
   "scripts": {
+    "admin": "npm run start --workspace=@inkbrain/admin",
+    "test:admin": "npm run test --workspace=@inkbrain/admin",
     "dev": "npm run dev --workspace=@inkbrain/web",
     "build": "npm run build --workspace=@inkbrain/web",
     "check": "npm run check --workspace=@inkbrain/web",
