@@ -1,0 +1,896 @@
+const $ = (s) => document.querySelector(s);
+const app = $("#app"),
+  notice = $("#notice");
+let theme =
+  document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+function applyTheme(nextTheme) {
+  theme = nextTheme;
+  document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem("inkbrain-theme", theme);
+  } catch {}
+}
+const names = {
+  dashboard: "概览",
+  articles: "文章",
+  knowledge: "专题",
+  projects: "项目",
+  tools: "工具",
+  tags: "标签",
+  assets: "文件库",
+  settings: "站点设置",
+  help: "使用说明",
+};
+const labels = {
+  title: "标题",
+  name: "名称",
+  summary: "摘要",
+  topic: "主题",
+  maturity: "证据成熟度",
+  demo: "这是 Demo 示例",
+  related: "相关内容",
+  publishedAt: "发布日期",
+  tags: "标签（可多选）",
+  readingMinutes: "阅读分钟数",
+  draft: "内容草稿标记",
+  order: "排序",
+  thesis: "专题主张",
+  concepts: "关键概念",
+  learningPath: "学习路径",
+  references: "关联内容标识",
+  articles: "文章",
+  labs: "实验",
+  projects: "项目",
+  tools: "工具",
+  adjacent: "相邻专题",
+  description: "说明",
+  type: "项目类型",
+  status: "项目状态",
+  tagline: "一句话介绍",
+  stack: "技术栈",
+  capabilities: "能力",
+  evidence: "证据",
+  documentation: "文档说明",
+  repositoryUrl: "源码仓库地址",
+  documentationUrl: "文档地址",
+  label: "链接名称",
+  href: "链接地址",
+  domain: "所属栏目",
+  monogram: "图标缩写",
+  kind: "工具类型",
+  platform: "平台",
+  availability: "下载状态",
+  features: "功能",
+  screenshots: "截图",
+  src: "图片地址",
+  alt: "图片描述",
+  relatedProject: "关联项目标识",
+  release: "发布版本",
+  version: "版本号",
+  packageFormat: "包格式",
+  fileSize: "文件大小",
+  requirements: "系统要求",
+  releasedAt: "发布日期",
+  checksum: "SHA-256",
+  notes: "版本说明",
+  downloadUrl: "下载地址",
+  author: "作者",
+  intro: "首页介绍",
+  bio: "关于作者",
+};
+const enums = {
+  maturity: ["idea", "studied", "implemented", "verified", "production"],
+  type: ["Agent Framework", "Application", "Library", "Other"],
+  status: ["concept", "building", "released", "verified"],
+  kind: ["macos-app", "cli", "plugin", "web-tool"],
+  availability: ["demo", "available", "retired"],
+  domain: ["Writing", "Knowledge", "Lab", "Tool"],
+};
+const templates = {
+  repositoryUrls: "",
+  documentationUrls: "",
+  learningPath: { title: "", description: "" },
+  related: { label: "", href: "", domain: "Writing" },
+  screenshots: { src: "", alt: "" },
+};
+const articleDataKeys = new Set([
+  "title",
+  "summary",
+  "publishedAt",
+  "tags",
+  "readingMinutes",
+  "draft",
+]);
+const articleData = (data) =>
+  Object.fromEntries(
+    Object.entries(data).filter(([key]) => articleDataKeys.has(key)),
+  );
+let csrf = "",
+  snapshot,
+  assets = [],
+  previewObjectUrls = [],
+  page = "dashboard",
+  editing = null,
+  dirty = false;
+const escape = (s) =>
+  String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+let noticeTimer;
+const notify = (s, error = false) => {
+  clearTimeout(noticeTimer);
+  notice.textContent = s;
+  notice.className = error ? "error" : "";
+  if (snapshot && $("main header .badge"))
+    $("main header .badge").textContent =
+      `草稿 v${snapshot.state.revision} · ${snapshot.active ? `已发布 v${snapshot.active.revision}` : "尚未发布"}`;
+  if (!error) noticeTimer = setTimeout(() => (notice.textContent = ""), 7000);
+};
+async function api(url, method = "GET", body) {
+  const res = await fetch("/admin/api/" + url, {
+    method,
+    headers: {
+      ...(body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
+      "X-CSRF-Token": csrf,
+    },
+    ...(body === undefined
+      ? {}
+      : { body: body instanceof FormData ? body : JSON.stringify(body) }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw Error(data.error ?? "请求失败");
+  return data;
+}
+async function refresh() {
+  snapshot = await api("state");
+  assets = await api("assets");
+  if ($("main header .badge"))
+    $("main header .badge").textContent =
+      `草稿 v${snapshot.state.revision} · ${snapshot.active ? `已发布 v${snapshot.active.revision}` : "尚未发布"}`;
+}
+function shell() {
+  const nextTheme = theme === "dark" ? "日间模式" : "夜间模式";
+  const themeIcon =
+    theme === "dark"
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"></path></svg>';
+  app.innerHTML = `<div class="layout"><aside class="sidebar"><div class="brand">InkBrain<span aria-hidden="true">.</span></div><div class="eyebrow">AUTHOR WORKSPACE</div><nav aria-label="管理导航">${Object.entries(
+    names,
+  )
+    .map(
+      ([id, label]) =>
+        `<button data-page="${id}" ${id === page ? 'aria-current="page"' : ""}>${label}</button>`,
+    )
+    .join(
+      "",
+    )}</nav><div class="bottom"><a href="/" target="_blank" rel="noopener">打开已发布站点 ↗</a><a href="/admin/api/export">导出内容备份</a><button data-action="logout">退出登录</button></div></aside><main id="main"><header><div><h1>${names[page]}</h1><div class="muted">以墨为迹，让思想生长。</div></div><div class="header-tools"><span class="badge">草稿 v${snapshot.state.revision} · ${snapshot.active ? `已发布 v${snapshot.active.revision}` : "尚未发布"}</span><button class="theme-toggle" data-action="theme" aria-label="切换为${nextTheme}" title="切换为${nextTheme}">${themeIcon}</button><button class="publish-site" data-action="publish">发布</button></div></header><div id="content"></div></main></div>`;
+}
+function draw() {
+  shell();
+  const c = $("#content");
+  if (["articles", "knowledge", "projects", "tools"].includes(page)) {
+    if (editing) return editor();
+    c.innerHTML = `<div class="toolbar"><button class="primary" data-action="new">新建${names[page]}</button><span class="help">修改可保存草稿或直接发布；删除会同步到站点。</span></div><div class="list">${snapshot.state[page].map((r) => `<div class="row"><button class="row-edit" data-edit="${r.id}"><span><strong>${escape(r.data.title ?? r.data.name)}</strong>${page === "articles" ? "" : `<small>${escape(r.id)}</small>`}</span>${page === "articles" ? "" : `<span class="badge">${r.included ? "公开内容" : "仅草稿"}</span>`}</button><button class="row-delete" data-delete="${r.id}" aria-label="删除${escape(r.data.title ?? r.data.name)}">删除</button></div>`).join("") || '<p class="empty">还没有内容，从第一篇开始。</p>'}</div>`;
+  } else if (page === "dashboard") {
+    c.innerHTML = `<div class="cards">${["articles", "knowledge", "projects", "tools"].map((k) => `<section class="card metric-card"><div class="metric-value"><span>${names[k]}</span><strong class="count">${snapshot.state[k].filter((r) => !r.archived).length}</strong></div><button data-page="${k}">管理${names[k]} <span aria-hidden="true">↗</span></button></section>`).join("")}</div><section class="card dashboard-guide"><div class="dashboard-guide-copy"><h2>保存，或者直接发布。</h2><p>编辑内容时可以保存为私人草稿，也可以保存并立即发布到访客站点。</p><p class="help">删除内容会直接同步发布；发布失败时，访客仍会看到上一个正常版本。</p></div><a class="button" href="/" target="_blank" rel="noopener">查看已发布站点 ↗</a></section>`;
+  } else if (page === "help") {
+    c.innerHTML = `<section class="card workspace-help"><h2>项目状态</h2><p class="help">描述项目本身的研发进展，方便读者了解当前阶段。</p><dl class="status-guide"><div><dt><code>concept</code><span>构思中</span></dt><dd>有想法或设计，尚未开始实现。</dd></div><div><dt><code>building</code><span>研发中</span></dt><dd>正在开发，功能还不完整。</dd></div><div><dt><code>released</code><span>已发布</span></dt><dd>已有可供他人使用的版本。</dd></div><div><dt><code>verified</code><span>已验证</span></dt><dd>经过测试或实际场景验证，有结果支撑。</dd></div></dl><div class="status-guide-note"><h3>与“保存并发布”的区别</h3><p>项目状态描述研发进展；“保存并发布”会把项目介绍页面发布到博客。研发中的项目也可以公开介绍，“已验证”不代表已经用于生产环境。</p></div></section>`;
+    c.insertAdjacentHTML(
+      "beforeend",
+      `<section class="card workspace-help"><h2>项目类型</h2><p class="help">按项目的用途和使用方式选择，目前提供以下四类。</p><dl class="status-guide"><div><dt><code>Agent Framework</code><span>智能体框架</span></dt><dd>用于构建、运行智能体的框架，例如提供任务编排、工具调用、记忆等能力的自研 Agent 框架。</dd></div><div><dt><code>Application</code><span>应用</span></dt><dd>可以直接使用的完整应用或服务，例如 AI 助手、知识库问答系统、博客、后端业务服务。</dd></div><div><dt><code>Library</code><span>代码库</span></dt><dd>供其他项目引用的代码库、SDK 或组件，例如模型调用 SDK、协议解析库、日志组件。</dd></div><div><dt><code>Other</code><span>其他</span></dt><dd>暂时不属于以上三类的项目，例如学习实验、技术原型、配置或模板集合。</dd></div></dl><div class="status-guide-note"><h3>如何选择</h3><p>用户直接使用，选 Application；开发者引入代码使用，选 Library；开发者基于它搭建智能体，选 Agent Framework。暂时无法归类时选 Other。</p></div></section>`,
+    );
+    c.insertAdjacentHTML(
+      "beforeend",
+      `<section class="card workspace-help"><h2>本地启动与更新</h2><p class="help">修改网站代码后，按下面流程检查和预览。</p><div class="command-guide"><div><code>npm run dev</code><span>开发预览</span><p>启动 Astro 开发服务器，通常访问 <code>http://127.0.0.1:4321/</code>，修改代码后会自动刷新。</p></div><div><code>npm run check</code><span>类型检查</span><p>检查 Astro 和 TypeScript 是否存在错误。</p></div><div><code>npm run build</code><span>生成构建产物</span><p>生成 <code>apps/web/dist</code>。这一步不会自动更新 4322 游客站点。</p></div><div><code>npm run admin</code><span>启动后台</span><p>启动后台和已发布游客站点，访问 <code>http://127.0.0.1:4322/admin/</code>。</p></div></div><div class="status-guide-note"><h3>让修改对游客生效</h3><p>文章、专题、项目和工具可在后台保存后点击右上角“发布”。网站代码或样式修改完成后，也需要重新构建并发布，4322 才会切换到新版本。</p></div></section>`,
+    );
+  } else if (page === "tags") tagManager();
+  else if (page === "assets") media();
+  else if (page === "settings") {
+    c.innerHTML = `<form id="settings-form" class="card"><div class="fields">${fields(snapshot.state.settings)}</div><div class="editor-actions"><span class="help">可以先保存草稿，也可以直接发布。</span><div class="editor-action-buttons"><button type="submit" data-save-mode="draft">保存草稿</button><button type="submit" class="primary" data-save-mode="publish">保存并发布</button></div></div></form>`;
+  }
+}
+function field(value, key, prefix) {
+  if (
+    page === "tools" &&
+    prefix === "release" &&
+    ["fileSize", "packageFormat"].includes(key)
+  )
+    return `<label class="field"><span>${labels[key]}</span><input value="${escape(value)}" readonly aria-readonly="true"></label>`;
+  if (page === "projects" && key === "documentation" && !prefix)
+    return `<div class="project-documentation-editor"><label class="field" for="f-documentation"><span>文档说明 · Markdown</span><textarea id="f-documentation" name="documentation" class="project-markdown" placeholder="## 快速开始&#10;&#10;在这里编写项目文档…">${escape(value)}</textarea><small>支持标题、列表、链接、图片、表格和代码块。</small></label><div class="toolbar markdown-toolbar"><button type="button" data-action="project-markdown">预览文档</button></div><div id="project-markdown-preview" class="body-preview" hidden></div></div>`;
+  const name = prefix ? prefix + "." + key : key,
+    label = labels[key] ?? key,
+    id = "f-" + name;
+  const head = `<label class="field ${typeof value === "string" && value.length > 100 ? "wide" : ""}" for="${id}"><span>${escape(label)}</span>`;
+  if (Array.isArray(value)) {
+    if (
+      value.some((v) => typeof v === "object") ||
+      ["learningPath", "screenshots"].includes(key) ||
+      (key === "related" && page === "projects")
+    )
+      return `<fieldset data-repeat="${name}"><legend>${escape(label)}</legend>${value.map((v, i) => `<div class="repeat-item"><div class="fields">${fields(v, name + "." + i)}</div><button type="button" data-remove="${name}.${i}">移除此项</button></div>`).join("")}<button type="button" data-add="${name}">添加一项</button></fieldset>`;
+    if (key === "tags")
+      return `${head}<select id="${id}" name="${name}" multiple data-type="multi">${snapshot.catalogs.tags.map(([id, title]) => `<option value="${id}" ${value.includes(id) ? "selected" : ""}>${escape(title)}</option>`).join("")}</select></label>`;
+    return `${head}<textarea id="${id}" name="${name}" data-type="lines" placeholder="每行一项">${escape(value.join("\n"))}</textarea><small>每行一项${prefix.includes("references") ? "，填写内容的英文标识" : ""}</small></label>`;
+  }
+  if (value && typeof value === "object")
+    return `<fieldset><legend>${escape(label)}</legend><div class="fields">${fields(value, name)}</div></fieldset>`;
+  if (typeof value === "boolean")
+    return `<label class="field check"><input type="checkbox" name="${name}" ${value ? "checked" : ""}>${escape(label)}</label>`;
+  if (enums[key])
+    return `${head}<select id="${id}" name="${name}">${enums[key].map((v) => `<option ${v === value ? "selected" : ""}>${escape(v)}</option>`).join("")}</select></label>`;
+  if (["description", "summary", "intro", "bio", "documentation"].includes(key))
+    return `${head}<textarea id="${id}" name="${name}">${escape(value)}</textarea></label>`;
+  return `${head}<input id="${id}" name="${name}" value="${escape(value)}" type="${typeof value === "number" ? "number" : ["publishedAt", "releasedAt"].includes(key) ? "date" : "text"}"></label>`;
+}
+function fields(data, prefix = "") {
+  return Object.entries(data)
+    .filter(([k]) => !["slug", "draft"].includes(k))
+    .map(([k, v]) => field(v, k, prefix))
+    .join("");
+}
+function articleFields(data) {
+  return `<label class="field wide" for="f-title"><span>标题</span><input id="f-title" name="title" value="${escape(data.title)}" required maxlength="240"></label><label class="field wide" for="f-summary"><span>摘要</span><textarea id="f-summary" name="summary" required maxlength="240">${escape(data.summary)}</textarea><small>用于文章列表和搜索结果。</small></label><div class="article-meta-fields"><label class="field" for="f-publishedAt"><span>发布日期</span><input id="f-publishedAt" name="publishedAt" value="${escape(data.publishedAt)}" type="date" required></label><label class="field" for="f-readingMinutes"><span>阅读时间</span><div class="input-suffix"><input id="f-readingMinutes" name="readingMinutes" value="${escape(data.readingMinutes)}" type="number" min="1" max="600" required><span>分钟</span></div></label></div><fieldset class="tag-picker"><legend>标签</legend><div class="tag-options">${snapshot.catalogs.tags.map(([id, title]) => `<label><input type="checkbox" name="tags" value="${id}" data-type="multi-check" ${data.tags.includes(id) ? "checked" : ""}><span>${escape(title)}</span></label>`).join("")}</div></fieldset>`;
+}
+function projectFields(data) {
+  data.repositoryUrls ??= data.repositoryUrl ? [data.repositoryUrl] : [];
+  data.documentationUrls ??= data.documentationUrl
+    ? [data.documentationUrl]
+    : [];
+  return `<section class="project-form-section"><div class="project-section-heading"><span>01</span><div><h2>基本信息</h2><p>定义项目是什么，以及它目前所处的阶段。</p></div></div><div class="project-form-grid project-basics">${field(data.name, "name", "")}<label class="field" for="record-id"><span>内容标识</span><input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"}></label>${field(data.type, "type", "")}${field(data.status, "status", "")}${field(data.tagline, "tagline", "")}${field(data.summary, "summary", "")}</div></section><section class="project-form-section"><div class="project-section-heading"><span>02</span><div><h2>项目内容</h2><p>介绍技术栈、核心能力，并编写项目文档。</p></div></div><div class="project-form-grid project-content-fields">${field(data.stack, "stack", "")}${field(data.capabilities, "capabilities", "")}${field(data.documentation, "documentation", "")}</div></section><section class="project-form-section"><div class="project-section-heading"><span>03</span><div><h2>项目链接</h2><p>填写部署后的访问地址，也可添加多个源码仓库和文档入口。</p></div></div><label class="field project-visit-field" for="f-projectUrl"><span>项目访问地址</span><input id="f-projectUrl" name="projectUrl" type="url" value="${escape(data.projectUrl ?? "")}" placeholder="https://your-project.com" aria-describedby="project-url-help"><small id="project-url-help">选填，部署后填写；访客可通过“访问项目”直接打开。</small></label><div class="project-form-grid project-link-fields">${projectUrlList(data, "repositoryUrls", "源码仓库地址")}${projectUrlList(data, "documentationUrls", "文档地址")}</div></section>`;
+}
+function knowledgeFields(data) {
+  data.items ??= ["articles", "projects", "tools"].flatMap((kind) =>
+    (data.references?.[kind] ?? []).map((id) => ({ kind, id })),
+  );
+  return `<section class="project-form-section"><div class="project-form-grid"><label class="field wide" for="f-title"><span>专题名称</span><input id="f-title" name="title" value="${escape(data.title)}" required maxlength="240"></label><label class="field wide" for="f-summary"><span>简介</span><textarea id="f-summary" name="summary" required maxlength="240">${escape(data.summary)}</textarea></label></div></section><section class="project-form-section"><div class="project-section-heading"><div><h2>专题内容</h2><p>按阅读与实践顺序排列。移出专题不会删除原内容。</p></div></div><ol class="topic-editor-items">${
+    data.items
+      .map((ref, index) => {
+        const record = snapshot.state[ref.kind]?.find(
+          (item) => item.id === ref.id,
+        );
+        return `<li><span class="topic-editor-number">${index + 1}</span><div class="topic-editor-title"><small>${names[ref.kind]}${!record ? " · 已删除" : record.archived || (ref.kind !== "articles" && !record.included) ? " · 尚未发布" : ""}</small><strong>${escape(record?.data.title ?? record?.data.name ?? ref.id)}</strong></div><div class="topic-editor-actions"><button type="button" data-topic-up="${index}" aria-label="上移第 ${index + 1} 项" ${index === 0 ? "disabled" : ""}>↑</button><button type="button" data-topic-down="${index}" aria-label="下移第 ${index + 1} 项" ${index === data.items.length - 1 ? "disabled" : ""}>↓</button><button type="button" data-topic-remove="${index}">移出</button></div></li>`;
+      })
+      .join("") ||
+    '<li class="help">还没有内容，从下方选择文章、项目或工具。</li>'
+  }</ol><div class="topic-picker"><h3>添加内容</h3><div class="topic-picker-filters"><label class="field"><span>内容类型</span><select id="topic-kind"><option value="">全部</option><option value="articles">文章</option><option value="projects">项目</option><option value="tools">工具</option></select></label><label class="field"><span>搜索</span><input id="topic-search" type="search" placeholder="搜索名称或标题"></label></div><div id="topic-candidates" aria-live="polite"></div></div></section>`;
+}
+function topicCandidates() {
+  const query = ($("#topic-search")?.value ?? "").trim().toLowerCase();
+  const kindFilter = $("#topic-kind")?.value;
+  const selected = new Set(
+    editing.data.items.map((ref) => ref.kind + ":" + ref.id),
+  );
+  const choices = ["articles", "projects", "tools"].flatMap((kind) =>
+    snapshot.state[kind]
+      .filter(
+        (record) =>
+          !record.archived &&
+          (!kindFilter || kind === kindFilter) &&
+          !selected.has(kind + ":" + record.id) &&
+          (record.data.title ?? record.data.name).toLowerCase().includes(query),
+      )
+      .map((record) => ({ kind, record })),
+  );
+  $("#topic-candidates").innerHTML =
+    choices
+      .map(
+        ({ kind, record }) =>
+          `<div class="topic-candidate"><div><small>${names[kind]}${kind !== "articles" && !record.included ? " · 尚未发布" : ""}</small><strong>${escape(record.data.title ?? record.data.name)}</strong></div><button type="button" data-topic-add="${kind}:${record.id}" aria-label="添加${escape(record.data.title ?? record.data.name)}">添加</button></div>`,
+      )
+      .join("") || '<p class="help">没有匹配的可添加内容。</p>';
+}
+function toolFields(data) {
+  const section = (number, title, description, content) =>
+    `<section class="project-form-section"><div class="project-section-heading"><span>${number}</span><div><h2>${title}</h2><p>${description}</p></div></div>${content}</section>`;
+  const render = (keys, source = data, prefix = "") =>
+    keys.map((key) => field(source[key], key, prefix)).join("");
+  return (
+    section(
+      "01",
+      "基本信息",
+      "填写工具名称、类型与图标缩写。",
+      `<div class="project-form-grid tool-basic-fields">${field(data.name, "name", "")}<label class="field" for="record-id"><span>内容标识</span><input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"}></label>${render(["kind", "monogram"])}</div>`,
+    ) +
+    section(
+      "02",
+      "工具介绍",
+      "介绍用途、主要功能，并添加展示截图。",
+      `<div class="project-form-grid tool-content-fields">${render(["summary", "description", "features", "screenshots"])}</div>`,
+    ) +
+    section(
+      "03",
+      "版本与下载",
+      "直接上传安装包，网站自动生成下载路径、文件大小和校验值。",
+      `<div class="tool-package-picker"><label class="field" for="tool-package-upload"><span>${data.release.downloadUrl ? "替换安装包" : "上传安装包"}</span><input id="tool-package-upload" type="file" accept=".dmg,.zip,.tar.gz,.tgz,.vsix"><small>支持 DMG、ZIP、tar.gz、TGZ、VSIX，最多 256 MB。保存并发布后，访客即可下载。</small></label>${data.release.downloadUrl ? `<p class="help">已配置安装包 · ${escape(data.release.packageFormat)} · ${escape(data.release.fileSize)}</p>` : ""}</div><div class="project-form-grid tool-release-fields">${render(["version", "packageFormat", "fileSize", "releasedAt"], data.release, "release")}</div>`,
+    )
+  );
+}
+function projectUrlList(data, key, label) {
+  return `<section class="project-url-list" aria-labelledby="${key}-heading"><div class="project-url-heading"><h3 id="${key}-heading">${label}</h3><button type="button" data-add="${key}">＋ 添加链接</button></div><div class="project-url-rows">${data[key].map((url, i) => `<div class="project-url-row"><label class="field" for="${key}-${i}"><input id="${key}-${i}" name="${key}.${i}" value="${escape(url)}" type="url" placeholder="https://" required aria-label="${label} ${i + 1}"></label><button type="button" data-remove="${key}.${i}" aria-label="移除${label} ${i + 1}">移除</button></div>`).join("") || '<p class="help">尚未添加链接</p>'}</div></section>`;
+}
+function set(obj, path, value) {
+  const keys = path.split(".");
+  let at = obj;
+  for (const k of keys.slice(0, -1)) at = at[k];
+  at[keys.at(-1)] = value;
+}
+function get(obj, path) {
+  return path.split(".").reduce((a, k) => a[k], obj);
+}
+function collect(form, base) {
+  const data = structuredClone(base);
+  form.querySelectorAll("[name]").forEach((el) => {
+    if (el.name.startsWith("_") || el.dataset.type === "multi-check") return;
+    set(
+      data,
+      el.name,
+      el.type === "checkbox"
+        ? el.checked
+        : el.type === "number"
+          ? Number(el.value)
+          : el.dataset.type === "lines"
+            ? el.value
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : el.multiple
+              ? [...el.selectedOptions].map((o) => o.value)
+              : el.value,
+    );
+  });
+  for (const name of new Set(
+    [...form.querySelectorAll('[data-type="multi-check"]')].map(
+      (el) => el.name,
+    ),
+  ))
+    set(
+      data,
+      name,
+      [
+        ...form.querySelectorAll(
+          `[data-type="multi-check"][name="${name}"]:checked`,
+        ),
+      ].map((el) => el.value),
+    );
+  return data;
+}
+function capture() {
+  if (!editing) return;
+  editing.data = collect(
+    $("#editor"),
+    page === "articles" ? articleData(editing.data) : editing.data,
+  );
+  editing.body = $("#body")?.value ?? "";
+  if (page === "articles") {
+    editing.included = true;
+    editing.archived = false;
+  } else {
+    if ($("#included")) editing.included = $("#included").checked;
+    editing.archived = false;
+  }
+  if ($("#record-id")) {
+    editing.id = $("#record-id").value;
+    if ("slug" in editing.data) editing.data.slug = editing.id;
+  }
+}
+function editor() {
+  const markdown = page === "articles";
+  const isArticle = page === "articles";
+  const isProject = page === "projects";
+  const isTool = page === "tools";
+  const isKnowledge = page === "knowledge";
+  const editorData = isArticle ? articleData(editing.data) : editing.data;
+  const statusFields =
+    isArticle || isProject || isTool || isKnowledge
+      ? ""
+      : `<div class="editor-status"><label class="check"><input id="included" type="checkbox" ${editing.included ? "checked" : ""}> 发布到访客站点</label></div>`;
+  const editorFields = isArticle
+    ? `<div class="article-fields">${articleFields(editorData)}</div>`
+    : isProject
+      ? `<div class="project-form">${projectFields(editorData)}</div>`
+      : isTool
+        ? `<div class="tool-form">${toolFields(editorData)}</div>`
+        : isKnowledge
+          ? `<div class="knowledge-form">${knowledgeFields(editorData)}</div>`
+          : `<div class="fields"><label class="field">内容标识<input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"} aria-describedby="id-help"><small id="id-help">英文小写与短横线，发布后用于页面地址。</small></label>${fields(editorData)}</div>`;
+  $("#content").innerHTML =
+    `<form id="editor" class="${isArticle ? "article-editor" : isProject ? "project-editor" : isTool ? "tool-editor" : isKnowledge ? "knowledge-editor" : ""}"><div class="card ${isArticle ? "article-meta-card" : "editor-meta-card"} ${isProject ? "project-editor-card" : ""}">${statusFields}${editorFields}</div>${
+      markdown
+        ? `<div class="card"><label class="field">正文 · Markdown<textarea id="body" class="markdown">${escape(editing.body)}</textarea></label><div class="source-import"><label class="field"><span>上传原文件作为正文</span><small>选择 MD、Markdown、HTML、JPG、JPEG、PNG 或 WebP。文件会替换当前正文，并立即在下方展示。</small><input type="file" id="editor-upload" accept=".html,.htm,.md,.markdown,.png,.jpg,.jpeg,.webp"></label></div><div class="toolbar markdown-toolbar"><button type="button" data-action="markdown">刷新正文预览</button><span class="help">手动修改上方正文后，可刷新查看效果。</span></div><div id="markdown-preview" class="body-preview"><p class="empty">上传原文件或点击“刷新正文预览”后，在这里查看最终效果。</p></div></div>`
+        : ""
+    }<div class="editor-actions"><button type="button" data-action="back">返回列表</button><div class="editor-action-buttons"><button type="submit" data-save-mode="draft">保存草稿</button><button type="submit" class="primary" data-save-mode="publish">保存并发布</button></div></div></form>`;
+  if (isKnowledge) topicCandidates();
+}
+function newRecord() {
+  const date = new Date().toISOString().slice(0, 10);
+  const common = {
+    title: "",
+    summary: "",
+  };
+  const data = {
+    articles: {
+      ...common,
+      publishedAt: date,
+      tags: [],
+      readingMinutes: 5,
+      draft: false,
+    },
+    knowledge: { ...common, order: 0, items: [] },
+    projects: {
+      slug: "",
+      name: "",
+      type: "Application",
+      status: "building",
+      demo: false,
+      tagline: "",
+      summary: "",
+      stack: [],
+      capabilities: [],
+      evidence: [],
+      documentation: "",
+      repositoryUrl: "",
+      documentationUrl: "",
+      related: [],
+    },
+    tools: {
+      slug: "",
+      name: "",
+      monogram: "IB",
+      kind: "macos-app",
+      platform: "macOS",
+      availability: "demo",
+      summary: "",
+      description: "",
+      features: [],
+      screenshots: [],
+      relatedProject: "",
+      release: {
+        version: "0.1.0",
+        packageFormat: "DMG",
+        fileSize: "待上传",
+        requirements: "macOS 13+",
+        releasedAt: date,
+        checksum: "",
+        notes: [],
+        downloadUrl: "",
+      },
+    },
+  }[page];
+  return {
+    id: ["articles", "knowledge"].includes(page)
+      ? `${page === "knowledge" ? "topic" : "article"}-${date.replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8)}`
+      : "",
+    data,
+    body: "",
+    included: page === "articles",
+    archived: false,
+    isNew: true,
+  };
+}
+function tagRow(tag, isNew = false) {
+  const count = snapshot.state.articles.filter((article) =>
+    article.data.tags.includes(tag.slug),
+  ).length;
+  return `<div class="tag-manage-row" data-tag-row><div class="tag-input-cell"><input aria-label="标签标识" data-tag-slug value="${escape(tag.slug)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${isNew ? "" : "readonly"}>${isNew ? "<small>英文小写与短横线，创建后不可修改。</small>" : ""}</div><div class="tag-input-cell"><input aria-label="标签名称" data-tag-label value="${escape(tag.label)}" maxlength="240" required></div><span class="tag-usage">${count ? `${count} 篇文章使用` : "尚未使用"}</span><button type="button" data-tag-remove ${count ? "disabled" : ""} title="${count ? "请先从相关文章中移除这个标签" : "移除标签"}">移除</button></div>`;
+}
+function tagManager() {
+  $("#content").innerHTML =
+    `<form id="tags-form" class="tag-manager"><section class="card"><div class="section-heading"><div><h2>文章标签</h2><p class="help">标签用于组织文章并生成公开标签页。标识使用英文小写与短横线，创建后不可修改。</p></div><button type="button" data-action="add-tag">新增标签</button></div><div class="tag-table"><div class="tag-table-head" aria-hidden="true"><span>标识</span><span>名称</span><span>使用情况</span><span>操作</span></div><div class="tag-manage-list">${snapshot.state.tags.map((tag) => tagRow(tag)).join("") || '<p class="empty">还没有标签。</p>'}</div></div></section><div class="editor-actions"><span class="help">正在使用的标签需先从相关文章中移除。</span><div class="editor-action-buttons"><button type="submit" data-save-mode="draft">保存草稿</button><button type="submit" class="primary" data-save-mode="publish">保存并发布</button></div></div></form>`;
+}
+function media() {
+  $("#content").innerHTML =
+    `<section class="card"><h2>文件留在草稿，引用后随站点发布。</h2><p class="help">支持 HTML / Markdown / PNG / JPEG / WebP / PDF / DMG / ZIP / tar.gz / VSIX。HTML 与 Markdown 最多 2 MB，其他文件最多 256 MB；文档预览会清理脚本等危险内容。</p><form id="upload" class="toolbar"><label class="field">上传文件<input type="file" id="file" required accept=".html,.htm,.md,.markdown,.png,.jpg,.jpeg,.webp,.pdf,.dmg,.zip,.tar.gz,.tgz,.vsix"></label><button class="primary">上传到文件库</button></form></section><div class="asset-grid">${assets.map((a) => `<article class="card asset">${a.type.startsWith("image/") ? `<img src="/admin/api/assets/${a.filename}" alt="${escape(a.name)}">` : a.type.startsWith("text/") ? `<iframe class="asset-preview" src="/admin/api/assets/${a.filename}/preview" title="${escape(a.name)}预览" sandbox loading="lazy"></iframe>` : ""}<h2>${escape(a.name)}</h2><p class="help">${(a.size / 1024 / 1024).toFixed(2)} MB · ${escape(a.type)}</p><code>${escape(a.url)}</code><div class="asset-actions"><button data-copy="${a.url}">复制引用地址</button><button class="asset-delete" data-asset-delete="${a.filename}">删除</button></div><details><summary>SHA-256</summary><p><code>${a.sha256}</code></p></details></article>`).join("") || '<p class="empty">文件库还是空的。</p>'}</div>`;
+}
+
+async function uploadAsset(file) {
+  const data = new FormData();
+  data.append("file", file);
+  const asset = await api("assets", "POST", data);
+  assets = await api("assets");
+  return asset;
+}
+
+async function renderBodyPreview(
+  source = "#body",
+  target = "#markdown-preview",
+) {
+  const result = await api("markdown", "POST", { body: $(source).value });
+  const preview = $(target);
+  preview.hidden = false;
+  for (const url of previewObjectUrls) URL.revokeObjectURL(url);
+  previewObjectUrls = [];
+  preview.innerHTML = result.html || '<p class="empty">正文为空。</p>';
+  await Promise.all(
+    [...preview.querySelectorAll('img[src^="/admin/api/assets/"]')].map(
+      async (image) => {
+        const response = await fetch(image.getAttribute("src"), {
+          credentials: "include",
+        });
+        if (!response.ok)
+          throw new Error(`正文图片读取失败（${response.status}）`);
+        const objectUrl = URL.createObjectURL(await response.blob());
+        previewObjectUrls.push(objectUrl);
+        image.src = objectUrl;
+      },
+    ),
+  );
+}
+
+async function replaceBodyWithAsset(asset) {
+  const body = $("#body");
+  let source;
+  if (asset.type.startsWith("image/")) {
+    const alt = asset.name.replace(/[\[\]()]/g, " ").trim() || "图片描述";
+    source = `![${alt}](${asset.url})`;
+  } else {
+    source = (await api(`assets/${asset.filename}/source`)).source;
+  }
+  body.value = source;
+  dirty = true;
+  await renderBodyPreview();
+  $("#markdown-preview").scrollIntoView({ block: "start" });
+  notify(`${asset.name} 已作为整篇正文导入并展示。`);
+}
+async function publishCurrentState() {
+  await api("build", "POST", {
+    revision: snapshot.state.revision,
+  });
+  notify("正在发布，请保持页面打开…");
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const result = await api("build");
+    snapshot.job = result.job;
+    snapshot.active = result.active;
+    if (result.job.status === "building") continue;
+    if (result.job.status !== "succeeded")
+      throw Error(result.job.message ?? "发布失败，访客站点保持不变");
+    await refresh();
+    return;
+  }
+}
+function canLeave() {
+  return !dirty || confirm("有尚未保存的修改，确定放弃吗？");
+}
+app.addEventListener("input", (e) => {
+  if (e.target.id === "topic-search") {
+    topicCandidates();
+    return;
+  }
+  if (e.target.closest("#editor,#settings-form,#tags-form")) dirty = true;
+});
+app.addEventListener("change", async (e) => {
+  try {
+    if (e.target.id === "topic-kind") {
+      topicCandidates();
+      return;
+    }
+    if (e.target.id === "tool-package-upload" && e.target.files?.[0]) {
+      const file = e.target.files[0];
+      if (!/\.(dmg|zip|tar\.gz|tgz|vsix)$/i.test(file.name))
+        throw Error("请选择 DMG、ZIP、tar.gz、TGZ 或 VSIX 安装包");
+      if (file.size > 256 * 1024 * 1024) throw Error("安装包不能超过 256 MB");
+      capture();
+      const controls = [
+        ...app.querySelectorAll("button,input,select,textarea"),
+      ];
+      const disabledStates = controls.map((control) => control.disabled);
+      controls.forEach((control) => {
+        control.disabled = true;
+      });
+      notify("正在上传安装包，请保持页面打开…");
+      try {
+        const a = await uploadAsset(file);
+        Object.assign(editing.data.release, {
+          downloadUrl: a.url,
+          checksum: a.sha256,
+          fileSize: (a.size / 1024 / 1024).toFixed(2) + " MB",
+          packageFormat: /\.tar\.gz$/i.test(a.name)
+            ? "tar.gz"
+            : a.name.split(".").at(-1).toUpperCase(),
+        });
+        dirty = true;
+        editor();
+        notify("安装包已上传，下载路径已生成。保存并发布后生效。");
+      } finally {
+        controls.forEach((control, index) => {
+          control.disabled = disabledStates[index];
+        });
+        e.target.value = "";
+      }
+    }
+    if (e.target.id === "editor-upload" && e.target.files?.[0]) {
+      const body = $("#body");
+      if (
+        body.value.trim() &&
+        !confirm("上传原文件会替换当前正文，确定继续吗？")
+      ) {
+        e.target.value = "";
+        return;
+      }
+      e.target.disabled = true;
+      notify("正在导入本地文件…");
+      const asset = await uploadAsset(e.target.files[0]);
+      await replaceBodyWithAsset(asset);
+      e.target.value = "";
+      e.target.disabled = false;
+    }
+  } catch (error) {
+    e.target.disabled = false;
+    notify(error.message, true);
+  }
+});
+app.addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  try {
+    if (
+      b.dataset.topicAdd ||
+      b.dataset.topicRemove !== undefined ||
+      b.dataset.topicUp !== undefined ||
+      b.dataset.topicDown !== undefined
+    ) {
+      capture();
+      const items = editing.data.items;
+      if (b.dataset.topicAdd) {
+        const [kind, id] = b.dataset.topicAdd.split(":");
+        if (!items.some((ref) => ref.kind === kind && ref.id === id))
+          items.push({ kind, id });
+      } else if (b.dataset.topicRemove !== undefined) {
+        items.splice(Number(b.dataset.topicRemove), 1);
+      } else {
+        const index = Number(b.dataset.topicUp ?? b.dataset.topicDown);
+        const target = index + (b.dataset.topicUp !== undefined ? -1 : 1);
+        if (target >= 0 && target < items.length)
+          [items[index], items[target]] = [items[target], items[index]];
+      }
+      dirty = true;
+      editor();
+    } else if (b.dataset.page) {
+      if (!canLeave()) return;
+      dirty = false;
+      editing = null;
+      page = b.dataset.page;
+      await refresh();
+      draw();
+      window.scrollTo(0, 0);
+    } else if (b.dataset.action === "theme") {
+      applyTheme(theme === "dark" ? "light" : "dark");
+      draw();
+    } else if (b.dataset.action === "publish") {
+      if (dirty && !confirm("当前页面有未保存修改，发布将使用最近一次保存的草稿。继续吗？")) return;
+      b.disabled = true;
+      await publishCurrentState();
+      draw();
+    } else if (b.dataset.action === "add-tag") {
+      const list = $(".tag-manage-list");
+      list.querySelector(".empty")?.remove();
+      list.insertAdjacentHTML(
+        "beforeend",
+        tagRow({ slug: "", label: "" }, true),
+      );
+      dirty = true;
+      list.lastElementChild.querySelector("[data-tag-slug]").focus();
+    } else if (b.dataset.tagRemove !== undefined) {
+      b.closest("[data-tag-row]").remove();
+      dirty = true;
+      if (!$("[data-tag-row]"))
+        $(".tag-manage-list").innerHTML =
+          '<p class="empty">还没有标签，点击“新增标签”创建。</p>';
+    } else if (b.dataset.delete) {
+      const record = snapshot.state[page].find(
+        (r) => r.id === b.dataset.delete,
+      );
+      if (!record) throw Error("内容不存在，请刷新后重试");
+      const title = record.data.title ?? record.data.name;
+      if (!confirm(`确定删除「${title}」？删除后将同步更新访客站点。`)) return;
+      b.disabled = true;
+      notify("正在删除并更新访客站点…");
+      try {
+        const result = await api(`records/${page}/${record.id}`, "DELETE", {
+          revision: snapshot.state.revision,
+        });
+        snapshot.state = result.state;
+        snapshot.active = result.active;
+        draw();
+        notify(`已删除「${title}」，访客站点已更新`);
+      } catch (error) {
+        await refresh();
+        draw();
+        throw error;
+      }
+    } else if (b.dataset.edit) {
+      editing = structuredClone(
+        snapshot.state[page].find((r) => r.id === b.dataset.edit),
+      );
+      if (page === "tools") editing.data.screenshots ??= [];
+      if (page === "projects") {
+        editing.data.repositoryUrl ??= "";
+        editing.data.documentationUrl ??= "";
+      }
+      editor();
+      window.scrollTo(0, 0);
+    } else if (b.dataset.add) {
+      capture();
+      const key = b.dataset.add.split(".").at(-1);
+      get(editing.data, b.dataset.add).push(structuredClone(templates[key]));
+      dirty = true;
+      editor();
+    } else if (b.dataset.remove) {
+      capture();
+      const parts = b.dataset.remove.split(".");
+      const index = Number(parts.pop());
+      get(editing.data, parts.join(".")).splice(index, 1);
+      dirty = true;
+      editor();
+    } else if (b.dataset.assetDelete) {
+      const asset = assets.find(
+        (entry) => entry.filename === b.dataset.assetDelete,
+      );
+      if (!asset) throw Error("文件不存在，请刷新后重试");
+      if (!confirm(`确定删除「${asset.name}」？删除后无法从文件库恢复。`))
+        return;
+      b.disabled = true;
+      const result = await api(`assets/${asset.filename}`, "DELETE", {});
+      assets = result.assets;
+      media();
+      notify(`已删除「${asset.name}」`);
+    } else if (b.dataset.copy) {
+      await navigator.clipboard.writeText(b.dataset.copy);
+      notify("引用地址已复制");
+    } else if (b.dataset.action === "new") {
+      editing = newRecord();
+      editor();
+      window.scrollTo(0, 0);
+      $(
+        ["projects", "tools"].includes(page)
+          ? "#f-name"
+          : "#record-id, #f-title",
+      )?.focus();
+    } else if (b.dataset.action === "back") {
+      if (!canLeave()) return;
+      dirty = false;
+      editing = null;
+      draw();
+      window.scrollTo(0, 0);
+    } else if (b.dataset.action === "logout") {
+      if (!canLeave()) return;
+      await api("logout", "POST", {});
+      dirty = false;
+      location.reload();
+    } else if (b.dataset.action === "project-markdown") {
+      await renderBodyPreview("#f-documentation", "#project-markdown-preview");
+    } else if (b.dataset.action === "markdown") {
+      await renderBodyPreview();
+    }
+  } catch (e) {
+    notify(e.message, true);
+    b.disabled = false;
+  }
+});
+app.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target,
+    button = e.submitter ?? form.querySelector("button[type=submit]");
+  const submitButtons = [
+    ...form.querySelectorAll('button:not([type="button"])'),
+  ];
+  const publish = button?.dataset.saveMode === "publish";
+  try {
+    for (const submitButton of submitButtons) submitButton.disabled = true;
+    if (form.id === "login") {
+      const password = $("#password").value;
+      if ($("#confirm") && $("#confirm").value !== password)
+        throw Error("两次输入的密码不一致");
+      const data = await api(form.dataset.mode, "POST", { password });
+      csrf = data.csrf;
+      await refresh();
+      draw();
+      notify("欢迎回来");
+    } else if (form.id === "editor") {
+      capture();
+      const record = structuredClone(editing);
+      if (page === "tools") {
+        record.data.availability = record.data.release.downloadUrl?.trim()
+          ? "available"
+          : "demo";
+        record.data.relatedProject = "";
+        const previous = snapshot.state.tools.find(
+          (tool) => tool.id === record.id,
+        );
+        if (!previous || previous.data.kind !== record.data.kind)
+          record.data.platform =
+            record.data.kind === "macos-app"
+              ? "macOS"
+              : record.data.kind === "web-tool"
+                ? "浏览器"
+                : "见系统要求";
+      }
+      if (["projects", "tools", "knowledge"].includes(page) && publish)
+        record.included = true;
+      delete record.isNew;
+      const data = await api(`records/${page}/${record.id}`, "PUT", {
+        revision: snapshot.state.revision,
+        record,
+      });
+      snapshot.state = data.state;
+      editing = structuredClone(
+        data.state[page].find((r) => r.id === record.id),
+      );
+      dirty = false;
+      if (publish) {
+        await publishCurrentState();
+        editing = structuredClone(
+          snapshot.state[page].find((r) => r.id === record.id),
+        );
+      }
+      editor();
+      notify(publish ? "保存并发布成功" : "草稿已保存");
+    } else if (form.id === "settings-form") {
+      const result = await api("settings", "PUT", {
+        revision: snapshot.state.revision,
+        settings: collect(form, snapshot.state.settings),
+      });
+      snapshot.state = result.state;
+      dirty = false;
+      if (publish) await publishCurrentState();
+      draw();
+      notify(publish ? "设置已保存并发布" : "设置草稿已保存");
+    } else if (form.id === "tags-form") {
+      const tags = [...form.querySelectorAll("[data-tag-row]")].map((row) => ({
+        slug: row.querySelector("[data-tag-slug]").value.trim(),
+        label: row.querySelector("[data-tag-label]").value.trim(),
+      }));
+      const result = await api("tags", "PUT", {
+        revision: snapshot.state.revision,
+        tags,
+      });
+      snapshot.state = result.state;
+      snapshot.catalogs.tags = result.state.tags.map(({ slug, label }) => [
+        slug,
+        label,
+      ]);
+      dirty = false;
+      if (publish) await publishCurrentState();
+      tagManager();
+      notify(publish ? "标签已保存并发布" : "标签草稿已保存");
+    } else if (form.id === "upload") {
+      notify("正在上传，请保持页面打开…");
+      await uploadAsset($("#file").files[0]);
+      media();
+      notify("上传完成。可在内容中引用，或在工具编辑页选择安装包。");
+    }
+  } catch (error) {
+    notify(error.message, true);
+    form.setAttribute("aria-describedby", "notice");
+  } finally {
+    for (const submitButton of submitButtons) submitButton.disabled = false;
+  }
+});
+window.addEventListener("beforeunload", (e) => {
+  if (dirty) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+async function init() {
+  try {
+    const session = await api("session");
+    csrf = session.csrf ?? "";
+    if (session.authenticated) {
+      await refresh();
+      draw();
+      return;
+    }
+    app.innerHTML = `<main id="main" class="login"><div class="brand">InkBrain.</div><div class="eyebrow">AUTHOR WORKSPACE</div><h1>${session.configured ? "继续你的创作" : "创建作者密码"}</h1><p class="muted">${session.configured ? "登录管理文章、项目与工具。" : "这是你的私人工作台。请设置至少 6 位的密码，没有默认密码。"}</p><form id="login" data-mode="${session.configured ? "login" : "setup"}"><label class="field">密码<input id="password" type="password" required minlength="6" maxlength="256" autocomplete="${session.configured ? "current-password" : "new-password"}"></label>${session.configured ? "" : '<label class="field">确认密码<input id="confirm" type="password" required minlength="6" autocomplete="new-password"></label>'}<button class="primary">${session.configured ? "登录" : "创建并进入工作台"}</button></form></main>`;
+  } catch (e) {
+    notify(e.message, true);
+  }
+}
+init();

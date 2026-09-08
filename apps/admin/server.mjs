@@ -1,0 +1,465 @@
+import express from "express";
+import multer from "multer";
+import fs from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createHash, randomUUID } from "node:crypto";
+import { createAuth } from "./auth.mjs";
+import { createStore, atomicJson, readJson } from "./store.mjs";
+import {
+  catalogs,
+  kinds,
+  parseRecord,
+  settingsSchema,
+  slug,
+  tagListSchema,
+  cleanMarkdown,
+} from "./schema.mjs";
+import { createPublisher } from "./publisher.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+export const root = path.resolve(here, "../..");
+const imageTypes = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+const documentTypes = {
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
+};
+const extensions = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".dmg",
+  ".zip",
+  ".tar.gz",
+  ".tgz",
+  ".pdf",
+  ".vsix",
+  ".html",
+  ".htm",
+  ".md",
+  ".markdown",
+];
+export async function createApp(options = {}) {
+  const host = options.host ?? process.env.ADMIN_HOST ?? "127.0.0.1";
+  const port = options.port ?? Number(process.env.ADMIN_PORT ?? 4322);
+  const origin =
+    options.origin ?? process.env.ADMIN_ORIGIN ?? `http://127.0.0.1:${port}`;
+  const local = ["127.0.0.1", "::1"].includes(host);
+  if (!local && !origin.startsWith("https://"))
+    throw new Error("远程后台必须配置 HTTPS ADMIN_ORIGIN");
+  const dir =
+    options.dir ?? process.env.ADMIN_DATA_DIR ?? path.join(root, ".inkbrain");
+  const web = options.web ?? path.join(root, "apps/web");
+  const store = await createStore(dir, web);
+  const auth = await createAuth({
+    dir,
+    origin,
+    allowSetup: local,
+    initialPassword: options.password ?? process.env.ADMIN_PASSWORD,
+  });
+  const publisher = await createPublisher({
+    dir,
+    web,
+    root,
+    siteUrl: process.env.SITE_URL ?? origin,
+    buildOverride: options.buildOverride,
+  });
+  const app = express();
+  app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    if (req.get("host") !== new URL(origin).host)
+      return res.status(400).send("Host not allowed");
+    res.set({
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "same-origin",
+      "X-Frame-Options": "SAMEORIGIN",
+    });
+    if (req.path.startsWith("/admin"))
+      res.set({
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+        "Content-Security-Policy":
+          "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data: blob:; frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'",
+      });
+    next();
+  });
+  app.use("/admin/api", express.json({ limit: "2mb" }));
+  app.get("/admin/api/session", (req, res) => {
+    const s = auth.session(req);
+    res.json({
+      configured: auth.configured(),
+      authenticated: !!s,
+      csrf: s?.csrf,
+    });
+  });
+  app.post("/admin/api/setup", auth.trusted, auth.setup);
+  app.post("/admin/api/login", auth.trusted, auth.login);
+  app.use("/admin/api", auth.requireAuth);
+  app.use("/admin/api", (req, res, next) =>
+    req.method === "GET" || req.method === "HEAD"
+      ? next()
+      : auth.trusted(req, res, () => auth.csrf(req, res, next)),
+  );
+  app.post("/admin/api/logout", auth.logout);
+  app.get("/admin/api/state", async (req, res) => {
+    const state = await store.read();
+    res.json({
+      state,
+      catalogs: {
+        ...catalogs,
+        tags: state.tags.map(({ slug, label }) => [slug, label]),
+      },
+      active: publisher.current(),
+      job: publisher.status(),
+    });
+  });
+  app.put("/admin/api/records/:kind/:id", async (req, res) => {
+    const { kind, id } = req.params;
+    slug.parse(id);
+    const record = parseRecord(kind, req.body.record, id);
+    const state = await store.update(req.body.revision, (s) => {
+      const index = s[kind].findIndex((x) => x.id === id);
+      if (index < 0) s[kind].push(record);
+      else s[kind][index] = record;
+    });
+    res.json({ state });
+  });
+  app.delete("/admin/api/records/:kind/:id", async (req, res) => {
+    const { kind, id } = req.params;
+    if (!kinds.includes(kind))
+      return res.status(404).json({ error: "内容类型不存在" });
+    slug.parse(id);
+    if (publisher.status().status === "building")
+      return res.status(409).json({ error: "站点正在更新，请完成后再删除。" });
+    const state = await store.update(req.body.revision, (s) => {
+      const index = s[kind].findIndex((x) => x.id === id);
+      if (index < 0)
+        throw Object.assign(new Error("内容不存在"), { status: 404 });
+      s[kind].splice(index, 1);
+      if (kind === "projects")
+        for (const tool of s.tools)
+          if (tool.data.relatedProject === id) tool.data.relatedProject = "";
+      for (const topic of s.knowledge) {
+        if (topic.data.items)
+          topic.data.items = topic.data.items.filter(
+            (item) => item.kind !== kind || item.id !== id,
+          );
+        if (topic.data.references?.[kind])
+          topic.data.references[kind] = topic.data.references[kind].filter(
+            (ref) => ref !== id,
+          );
+      }
+    });
+    const task = await publisher.start(state);
+    await task.promise;
+    if (publisher.status().status !== "succeeded")
+      return res.status(502).json({
+        error: `已从后台删除，但访客站点更新失败：${publisher.status().message}`,
+        state,
+      });
+    res.json({ state, active: publisher.current() });
+  });
+  app.put("/admin/api/settings", async (req, res) => {
+    const settings = settingsSchema.parse(req.body.settings);
+    const state = await store.update(req.body.revision, (s) => {
+      s.settings = settings;
+    });
+    res.json({ state });
+  });
+  app.put("/admin/api/tags", async (req, res) => {
+    const tags = tagListSchema.parse(req.body.tags);
+    const known = new Set(tags.map((tag) => tag.slug));
+    const state = await store.update(req.body.revision, (s) => {
+      for (const article of s.articles)
+        for (const tag of article.data.tags)
+          if (!known.has(tag))
+            throw Object.assign(
+              new Error(
+                `标签「${tag}」仍被文章「${article.data.title}」使用，请先从文章中移除。`,
+              ),
+              { status: 409 },
+            );
+      s.tags = tags;
+    });
+    res.json({ state });
+  });
+  app.post("/admin/api/markdown", (req, res) => {
+    if (typeof req.body.body !== "string" || req.body.body.length > 500000)
+      return res.status(400).json({ error: "正文过长" });
+    const html = cleanMarkdown(req.body.body).replace(
+      /src="\/media\/([^"/]+)"/g,
+      'src="/admin/api/assets/$1"',
+    );
+    res.json({ html });
+  });
+  app.get("/admin/api/export", async (req, res) => {
+    res.attachment(
+      `inkbrain-content-${new Date().toISOString().slice(0, 10)}.json`,
+    );
+    res.json({
+      state: await store.read(),
+      assets: await readJson(path.join(dir, "assets.json"), []),
+    });
+  });
+
+  const uploadDir = path.join(dir, "uploads");
+  const documentLimit = options.documentLimit ?? 2 * 1024 * 1024;
+  await fs.mkdir(uploadDir, { recursive: true, mode: 0o700 });
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: uploadDir,
+      filename(req, file, cb) {
+        const ext = extensions.find((ext) =>
+          file.originalname.toLowerCase().endsWith(ext),
+        );
+        cb(null, `${randomUUID()}${ext}`);
+      },
+    }),
+    limits: {
+      fileSize: options.uploadLimit ?? 256 * 1024 * 1024,
+      files: 1,
+      fields: 0,
+      parts: 2,
+    },
+    fileFilter(req, file, cb) {
+      cb(
+        extensions.some((ext) => file.originalname.toLowerCase().endsWith(ext))
+          ? null
+          : Object.assign(
+              new Error(
+                "支持 HTML、Markdown、PNG、JPEG、WebP、PDF、DMG、ZIP、tar.gz 和 VSIX",
+              ),
+              { status: 400 },
+            ),
+        true,
+      );
+    },
+  });
+  let assetQueue = Promise.resolve();
+  const findAsset = async (filename) =>
+    (await readJson(path.join(dir, "assets.json"), [])).find(
+      (asset) => asset.filename === filename,
+    );
+  const readDocument = async (asset) => {
+    if (!asset || !asset.type.startsWith("text/"))
+      throw Object.assign(new Error("该文件不是可渲染文档"), { status: 400 });
+    if (asset.size > documentLimit)
+      throw Object.assign(new Error("HTML 和 Markdown 文件最多 2 MB"), {
+        status: 413,
+      });
+    const bytes = await fs.readFile(path.join(uploadDir, asset.filename));
+    let source;
+    try {
+      source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      throw Object.assign(new Error("文档必须是有效的 UTF-8 文本"), {
+        status: 400,
+      });
+    }
+    if (source.includes("\0"))
+      throw Object.assign(new Error("文档不能包含二进制空字符"), {
+        status: 400,
+      });
+    return asset.type === "text/markdown"
+      ? source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "")
+      : source;
+  };
+  app.get("/admin/api/assets", async (req, res) =>
+    res.json(await readJson(path.join(dir, "assets.json"), [])),
+  );
+  app.post("/admin/api/assets", upload.single("file"), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "请选择文件" });
+    const ext = path.extname(req.file.filename);
+    const type = imageTypes[ext] ?? documentTypes[ext];
+    if (imageTypes[ext]) {
+      const handle = await fs.open(req.file.path, "r");
+      const bytes = Buffer.alloc(12);
+      await handle.read(bytes, 0, 12, 0);
+      await handle.close();
+      const valid =
+        ext === ".png"
+          ? bytes
+              .subarray(0, 8)
+              .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          : ext === ".webp"
+            ? bytes.toString("ascii", 0, 4) === "RIFF" &&
+              bytes.toString("ascii", 8, 12) === "WEBP"
+            : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+      if (!valid) {
+        await fs.unlink(req.file.path);
+        return res.status(400).json({ error: "图片内容与文件格式不匹配" });
+      }
+    }
+    if (documentTypes[ext]) {
+      try {
+        await readDocument({
+          filename: req.file.filename,
+          type: documentTypes[ext],
+          size: req.file.size,
+        });
+      } catch (error) {
+        await fs.unlink(req.file.path);
+        throw error;
+      }
+    }
+    const hash = createHash("sha256");
+    for await (const chunk of createReadStream(req.file.path))
+      hash.update(chunk);
+    const asset = {
+      id: randomUUID(),
+      filename: req.file.filename,
+      name: Buffer.from(req.file.originalname, "latin1").toString("utf8"),
+      url: `/media/${req.file.filename}`,
+      size: req.file.size,
+      sha256: hash.digest("hex"),
+      type: type ?? "application/octet-stream",
+      createdAt: new Date().toISOString(),
+    };
+    const save = assetQueue.then(async () => {
+      const assets = await readJson(path.join(dir, "assets.json"), []);
+      assets.unshift(asset);
+      await atomicJson(path.join(dir, "assets.json"), assets);
+    });
+    assetQueue = save.catch(() => {});
+    await save;
+    res.status(201).json(asset);
+  });
+  app.delete("/admin/api/assets/:filename", async (req, res) => {
+    const state = await store.read();
+    const asset = await findAsset(req.params.filename);
+    if (!asset) return res.status(404).json({ error: "文件不存在" });
+    if (JSON.stringify(state).includes(asset.url))
+      return res.status(409).json({
+        error: `文件「${asset.name}」仍被草稿内容引用，请先移除引用。`,
+      });
+    const remove = assetQueue.then(async () => {
+      const assets = await readJson(path.join(dir, "assets.json"), []);
+      const index = assets.findIndex(
+        (entry) => entry.filename === asset.filename,
+      );
+      if (index < 0)
+        throw Object.assign(new Error("文件不存在"), { status: 404 });
+      const nextAssets = assets.toSpliced(index, 1);
+      await atomicJson(path.join(dir, "assets.json"), nextAssets);
+      try {
+        await fs.unlink(path.join(uploadDir, asset.filename));
+      } catch (error) {
+        await atomicJson(path.join(dir, "assets.json"), assets);
+        throw error;
+      }
+      return nextAssets;
+    });
+    assetQueue = remove.catch(() => {});
+    res.json({ assets: await remove });
+  });
+  app.get("/admin/api/assets/:filename/source", async (req, res) => {
+    const asset = await findAsset(req.params.filename);
+    if (!asset) return res.status(404).end();
+    res.json({ source: await readDocument(asset), type: asset.type });
+  });
+  app.get("/admin/api/assets/:filename/preview", async (req, res) => {
+    const asset = await findAsset(req.params.filename);
+    if (!asset) return res.status(404).end();
+    const source = await readDocument(asset);
+    const html = cleanMarkdown(source).replace(
+      /src="\/media\/([^"/]+)"/g,
+      'src="/admin/api/assets/$1"',
+    );
+    res.set(
+      "Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https: data:; object-src 'none'; base-uri 'none'; frame-ancestors 'self'",
+    );
+    res
+      .type("html")
+      .send(
+        `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>body{margin:0;padding:16px;color:#232a28;background:#fffefa;font:15px/1.75 system-ui,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}pre{overflow:auto;padding:12px;background:#eef1ed}code{font-family:ui-monospace,monospace}h1,h2,h3{line-height:1.3}</style><body>${html}</body></html>`,
+      );
+  });
+  app.get("/admin/api/assets/:filename", async (req, res) => {
+    const asset = await findAsset(req.params.filename);
+    if (!asset) return res.status(404).end();
+    res.type(asset.type);
+    if (!asset.type.startsWith("image/")) res.attachment(asset.name);
+    res.sendFile(path.join(uploadDir, asset.filename), { dotfiles: "allow" });
+  });
+  app.post("/admin/api/build", async (req, res) => {
+    const state = await store.read();
+    if (req.body.revision !== state.revision)
+      return res.status(409).json({ error: "草稿版本已更新，请重新载入" });
+    const task = await publisher.start(state);
+    res.status(202).json(task.job);
+  });
+  app.get("/admin/api/build", (req, res) =>
+    res.json({ job: publisher.status(), active: publisher.current() }),
+  );
+  app.use(
+    "/admin",
+    express.static(path.join(here, "public"), {
+      index: "index.html",
+      dotfiles: "deny",
+    }),
+  );
+  app.use("/admin", (req, res) => res.status(404).end());
+  app.use((req, res, next) => {
+    const active = publisher.current();
+    if (!active)
+      return res
+        .status(503)
+        .type("html")
+        .send(
+          '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>InkBrain</title><h1>网站尚未发布</h1><p>作者完成发布后，内容将在这里展示。</p><a href="/admin/">进入后台</a></html>',
+        );
+    if (
+      req.path.startsWith("/media/") &&
+      !/\.(png|jpe?g|webp)$/i.test(req.path)
+    )
+      res.attachment(path.basename(req.path));
+    express.static(path.join(publisher.releaseRoot, active.id, "dist"), {
+      dotfiles: "deny",
+      etag: true,
+      maxAge: 0,
+      setHeaders(res, file) {
+        if (file.endsWith(".html")) res.setHeader("Cache-Control", "no-store");
+      },
+    })(req, res, next);
+  });
+  app.use((req, res) => res.status(404).send("页面不存在"));
+  app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    const status =
+      err.status ??
+      (err.name === "ZodError" || err instanceof multer.MulterError
+        ? 400
+        : 500);
+    const error =
+      err.name === "ZodError"
+        ? err.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("；")
+        : err instanceof multer.MulterError
+          ? "文件上传失败：请检查大小（最多 256 MB）和文件数量"
+          : err.message;
+    res.status(status).json({ error });
+  });
+  return { app, store, publisher, dir, origin, host, port };
+}
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  const service = await createApp();
+  const server = service.app.listen(service.port, service.host, () =>
+    console.log(
+      `InkBrain 后台：${service.origin}/admin/\n发布站点：${service.origin}/`,
+    ),
+  );
+  for (const signal of ["SIGTERM", "SIGINT"])
+    process.on(signal, () => server.close(() => process.exit(0)));
+}

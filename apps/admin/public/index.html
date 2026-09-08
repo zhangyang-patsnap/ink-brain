@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>作者工作台 · InkBrain</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <script>
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem("inkbrain-theme") ||
+          (matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+      } catch {}
+    </script>
+    <script src="/admin/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">跳转到内容</a>
+    <div id="app"></div>
+    <p id="notice" role="status" aria-live="polite"></p>
+  </body>
+</html>

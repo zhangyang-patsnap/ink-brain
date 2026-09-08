@@ -1,0 +1,32 @@
+---
+import { getCollection } from 'astro:content';
+import ArticleRow from '../../../components/ArticleRow.astro';
+import PageIntro from '../../../components/PageIntro.astro';
+import { articleTags } from '../../../data/taxonomy';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  return articleTags.map((tag) => ({
+    params: { slug: tag.slug },
+    props: {
+      tag,
+      articles: articles
+        .filter((article) => article.data.tags.includes(tag.slug))
+        .sort((a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf()),
+    },
+  }));
+}
+
+const { tag, articles } = Astro.props;
+---
+
+<BaseLayout title={`#${tag.label} — 技术写作 — InkBrain`} description={`InkBrain 中与 ${tag.label} 相关的文章。`} section="writing">
+  <PageIntro title={`#${tag.label}`} description="用同一个技术关键词连接不同文章。" index="WRITING / TAG" note={`${articles.length} 篇相关文章。`} />
+  <div class="content-shell taxonomy-return"><a class="back-link" href="/writing/">← 返回全部写作</a></div>
+  <section class="content-shell article-list article-list-after-return" aria-label={`${tag.label}文章`}>
+    {articles.length > 0
+      ? articles.map((article, index) => <ArticleRow article={article} featured={index === 0} />)
+      : <p class="catalog-empty">这个标签尚无文章。</p>}
+  </section>
+</BaseLayout>

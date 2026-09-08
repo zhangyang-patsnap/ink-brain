@@ -1,0 +1,37 @@
+---
+import ArrowLink from '../../components/ArrowLink.astro';
+import PageIntro from '../../components/PageIntro.astro';
+import { ownedProjects } from '../../data/projects';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const statusLabels = { concept: '构思', building: '研发中', released: '已发布', verified: '已验证' } as const;
+---
+
+<BaseLayout title="项目作品 — InkBrain" description="自研 Agent 框架、应用与库的正式主档。" section="projects">
+  <PageIntro
+    title="项目作品"
+    description="了解我构建的框架、应用与开源库：它们解决什么问题，如何设计，以及目前进展。"
+    index="PROJECTS / 04"
+    note={ownedProjects.length && ownedProjects.every(project => project.demo) ? '当前项目为展示示例，尚未提供真实发布版本。' : '从想法到实现，记录持续构建的过程。'}
+  />
+
+  <section class="content-shell project-catalog" aria-label="自研项目">
+    {ownedProjects.map((project, index) => (
+      <article class="project-feature">
+        <div class="project-number">P / {String(index + 1).padStart(2, '0')}</div>
+        <div class="project-main">
+          <div class="catalog-eyebrow"><span>{project.type}</span><span>{project.demo ? 'DEMO' : project.status.toUpperCase()}</span></div>
+          <h2><a href={`/projects/${project.slug}/`}>{project.name}</a></h2>
+          <p class="project-tagline">{project.tagline}</p>
+          <p>{project.summary}</p>
+          <div class="stack-register">{project.stack.map((item) => <span>{item}</span>)}</div>
+        </div>
+        <div class="project-state">
+          <span>STATUS</span><strong>{statusLabels[project.status]}</strong>
+          <ArrowLink href={`/projects/${project.slug}/`} label="了解项目" />
+          {project.projectUrl && <a href={project.projectUrl} target="_blank" rel="noopener noreferrer">访问项目 ↗</a>}
+        </div>
+      </article>
+    ))}
+  </section>
+</BaseLayout>

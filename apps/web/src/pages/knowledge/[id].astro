@@ -1,0 +1,32 @@
+---
+import { getCollection } from 'astro:content';
+import { topicCatalog } from '../../data/topic-content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+export async function getStaticPaths() {
+  return (await getCollection('knowledge')).map((entry) => ({ params: { id: entry.id }, props: { entry } }));
+}
+const { entry } = Astro.props;
+const catalog = await topicCatalog();
+const items = entry.data.items.flatMap((ref) => {
+  const item = catalog.get(`${ref.kind}:${ref.id}`);
+  return item ? [item] : [];
+});
+---
+<BaseLayout title={`${entry.data.title} — 专题 — InkBrain`} description={entry.data.summary} section="knowledge">
+  <article>
+    <header class="topic-hero shell">
+      <a class="back-link" href="/knowledge/">← 返回专题</a>
+      <div class="topic-hero-grid">
+        <div class="topic-hero-meta"><span>COLLECTION</span><span>{items.length} 项内容</span></div>
+        <div><h1>{entry.data.title}</h1><p>{entry.data.summary}</p></div>
+      </div>
+    </header>
+    <section class="content-shell topic-sequence" aria-labelledby="sequence-title">
+      <span class="section-kicker">READ &amp; PRACTICE</span><h2 id="sequence-title">阅读与实践</h2>
+      {items.length ? <ol>{items.map((item, index) => <li>
+        <span class="topic-step-number">{String(index + 1).padStart(2, '0')}</span>
+        <a href={item.href}><span class="section-kicker">{item.type}</span><h3>{item.title}<span aria-hidden="true"> ↗</span></h3><p>{item.summary}</p></a>
+      </li>)}</ol> : <p>专题内容正在整理中。</p>}
+    </section>
+  </article>
+</BaseLayout>

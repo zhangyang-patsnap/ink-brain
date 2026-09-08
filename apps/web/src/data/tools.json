@@ -1,0 +1,110 @@
+[
+  {
+    "slug": "trace-deck",
+    "name": "Trace Deck",
+    "monogram": "TD",
+    "kind": "macos-app",
+    "platform": "macOS",
+    "availability": "demo",
+    "summary": "在本地整理 Agent 运行事件、终态与失败证据的桌面工具。",
+    "description": "将分散的运行事件整理成可阅读的时间线，帮助开发者定位失败阶段并保存排查记录。当前为产品展示示例。",
+    "features": [
+      "导入 JSONL 事件流",
+      "按运行阶段定位失败",
+      "导出可分享的本地报告"
+    ],
+    "release": {
+      "version": "0.1.0-demo",
+      "packageFormat": "DMG",
+      "fileSize": "18.4 MB",
+      "requirements": "macOS 14.0 或更高版本",
+      "releasedAt": "2026-09-07",
+      "checksum": "DEMO — 尚未提供 SHA-256",
+      "notes": [
+        "建立运行事件时间线",
+        "增加终态快速过滤",
+        "完成 DMG 详情页样式"
+      ]
+    },
+    "relatedProject": "atlas-agent-framework"
+  },
+  {
+    "slug": "contract-kit",
+    "name": "Contract Kit",
+    "monogram": "CK",
+    "kind": "cli",
+    "platform": "macOS / Linux",
+    "availability": "demo",
+    "summary": "校验 Agent、Tool 与运行事件 JSON Schema 的命令行工具。",
+    "description": "在终端检查接口数据是否符合约定，发现缺失字段与不兼容变更。当前为产品展示示例。",
+    "features": [
+      "Schema lint",
+      "兼容性检查",
+      "可读错误位置"
+    ],
+    "release": {
+      "version": "0.1.0-demo",
+      "packageFormat": "tar.gz",
+      "fileSize": "4.2 MB",
+      "requirements": "arm64 / x86_64",
+      "releasedAt": "2026-09-07",
+      "checksum": "DEMO — 尚未提供 SHA-256",
+      "notes": [
+        "定义基础命令界面",
+        "增加 Demo Schema 校验结果"
+      ]
+    }
+  },
+  {
+    "slug": "prompt-shelf",
+    "name": "Prompt Shelf",
+    "monogram": "PS",
+    "kind": "plugin",
+    "platform": "Editor",
+    "availability": "demo",
+    "summary": "在编辑器内管理提示词契约、样例与评估记录。",
+    "description": "把提示词、输出样例和评估记录放在同一处，方便在编辑器内比较不同版本。当前为产品展示示例。",
+    "features": [
+      "版本化 Prompt",
+      "对比输出样例",
+      "关联评估证据"
+    ],
+    "release": {
+      "version": "0.1.0-demo",
+      "packageFormat": "Plugin bundle",
+      "fileSize": "1.8 MB",
+      "requirements": "支持的编辑器待确认",
+      "releasedAt": "2026-09-07",
+      "checksum": "DEMO — 尚未提供 SHA-256",
+      "notes": [
+        "建立插件信息结构"
+      ]
+    }
+  },
+  {
+    "slug": "json-formatter",
+    "name": "JSON Formatter",
+    "monogram": "{}",
+    "kind": "web-tool",
+    "platform": "Browser",
+    "availability": "demo",
+    "summary": "快速整理 JSON 数据，检查格式与阅读结构。当前为界面示例。",
+    "description": "浏览器本地工具示例，不会解析、复制或传输任何输入。",
+    "features": [
+      "Format 状态",
+      "Invalid JSON 状态",
+      "Local-only 说明"
+    ],
+    "release": {
+      "version": "UI-demo",
+      "packageFormat": "Web",
+      "fileSize": "—",
+      "requirements": "现代浏览器",
+      "releasedAt": "2026-09-07",
+      "checksum": "—",
+      "notes": [
+        "功能逻辑尚未实现"
+      ]
+    }
+  }
+]

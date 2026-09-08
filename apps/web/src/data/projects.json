@@ -1,0 +1,46 @@
+[
+  {
+    "slug": "atlas-agent-framework",
+    "name": "Atlas Agent Framework",
+    "type": "Agent Framework",
+    "status": "building",
+    "demo": true,
+    "tagline": "一个强调类型契约、运行证据与明确终态的自研 Agent 框架。",
+    "summary": "面向需要控制任务生命周期的 Agent 应用，探索工具契约、取消机制与运行事件的统一设计。当前为概念展示，尚未提供源码与发行版。",
+    "stack": [
+      "Rust",
+      "TypeScript",
+      "SSE",
+      "JSON Schema"
+    ],
+    "capabilities": [
+      "类型化 Agent 与 Tool 契约",
+      "可取消的运行状态机",
+      "明确的 completed / failed / cancelled 终态",
+      "实验与产品运行时隔离"
+    ],
+    "evidence": [
+      "架构边界示例",
+      "协议字段示例",
+      "失败路径示例"
+    ],
+    "documentation": "Demo documentation · 尚未提供仓库或可运行版本",
+    "related": [
+      {
+        "label": "构建可演化的 AI 应用架构",
+        "href": "/writing/designing-verifiable-ai-systems/",
+        "domain": "Writing"
+      },
+      {
+        "label": "Typed Contracts",
+        "href": "/knowledge/typed-contracts/",
+        "domain": "Knowledge"
+      },
+      {
+        "label": "Agent Runtime Lab",
+        "href": "/frameworks/agent-runtime-rust/",
+        "domain": "Lab"
+      }
+    ]
+  }
+]

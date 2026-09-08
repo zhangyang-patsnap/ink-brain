@@ -1,0 +1,50 @@
+---
+import { softwareTools, toolKindLabels } from '../../data/tools';
+import { ownedProjects } from '../../data/projects';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  return softwareTools.map((tool) => ({ params: { slug: tool.slug }, props: { tool } }));
+}
+
+const { tool } = Astro.props;
+const parentProject = ownedProjects.find(project => project.slug === tool.relatedProject);
+const available = tool.availability === 'available'
+  && /^(https:\/\/|\/media\/)/.test(tool.release.downloadUrl ?? '')
+  && /^[a-f0-9]{64}$/i.test(tool.release.checksum);
+---
+
+<BaseLayout title={`${tool.name} — 工具市场 — InkBrain`} description={tool.summary} section="tools">
+  <article>
+    <header class="tool-product-hero shell">
+      <a class="back-link" href="/tools/">← 返回工具市场</a>
+      <div class="tool-product-grid">
+        <div class="tool-mark large" aria-hidden="true">{tool.monogram}</div>
+        <div>
+          <div class="catalog-eyebrow"><span>{toolKindLabels[tool.kind]} / {tool.platform}</span><span>{tool.availability.toUpperCase()}</span></div>
+          <h1>{tool.name}</h1><p>{tool.summary}</p>
+        </div>
+        <div class="download-panel">
+          <span>{available ? '可下载' : tool.availability === 'retired' ? '已停止分发' : '示例软件 · 暂未发布'}</span>
+          {available
+            ? <a class="download-action" href={tool.release.downloadUrl} rel="external">下载 {tool.release.packageFormat}</a>
+            : <button class="download-action" type="button" disabled>暂未发布</button>}
+          <small>{available ? '下载前请确认设备符合下方系统要求。' : '当前可查看产品介绍，下载将在正式发布后开放。'}</small>
+        </div>
+      </div>
+    </header>
+
+    {tool.screenshots?.length ? <section class="content-shell tool-screenshots" aria-label="软件截图">{tool.screenshots.map((shot) => <figure><img src={shot.src} alt={shot.alt} loading="lazy" /></figure>)}</section> : <div class="content-shell screenshot-placeholder"><span class="section-kicker">PRODUCT PREVIEW</span><p>软件截图待补充</p></div>}
+    <div class="content-shell tool-product-body">
+      <section class="tool-description"><span class="section-kicker">ABOUT</span><h2>工具说明</h2><p>{tool.description}</p><ul>{tool.features.map((feature: string) => <li>{feature}</li>)}</ul></section>
+      <aside class="release-ledger" aria-labelledby="release-title">
+        <span class="section-kicker">RELEASE</span><h2 id="release-title">发布信息</h2>
+        <dl>
+          <div><dt>VERSION</dt><dd>{tool.release.version}</dd></div><div><dt>PACKAGE</dt><dd>{tool.release.packageFormat}</dd></div><div><dt>SIZE</dt><dd>{tool.release.fileSize}</dd></div><div><dt>DATE</dt><dd>{tool.release.releasedAt}</dd></div><div><dt>REQUIREMENTS</dt><dd>{tool.release.requirements}</dd></div><div class="checksum-row"><dt>SHA-256</dt><dd>{tool.release.checksum}</dd></div>
+        </dl>
+      </aside>
+      <section class="release-notes"><span class="section-kicker">RELEASE NOTES</span><h2>更新说明</h2><ol>{tool.release.notes.map((note: string) => <li>{note}</li>)}</ol></section>
+      {parentProject && <aside class="tool-parent-project"><span>RELATED PROJECT</span><a href={`/projects/${parentProject.slug}/`}>{parentProject.name} ↗</a></aside>}
+    </div>
+  </article>
+</BaseLayout>
