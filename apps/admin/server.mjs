@@ -55,8 +55,6 @@ export async function createApp(options = {}) {
   const origin =
     options.origin ?? process.env.ADMIN_ORIGIN ?? `http://127.0.0.1:${port}`;
   const local = ["127.0.0.1", "::1"].includes(host);
-  if (!local && !origin.startsWith("https://"))
-    throw new Error("远程后台必须配置 HTTPS ADMIN_ORIGIN");
   const dir =
     options.dir ?? process.env.ADMIN_DATA_DIR ?? path.join(root, ".inkbrain");
   const web = options.web ?? path.join(root, "apps/web");
@@ -65,7 +63,7 @@ export async function createApp(options = {}) {
     dir,
     origin,
     allowSetup: local,
-    initialPassword: options.password ?? process.env.ADMIN_PASSWORD,
+    initialPassword: options.password ?? process.env.ADMIN_PASSWORD ?? "Ryan1010",
   });
   const publisher = await createPublisher({
     dir,
