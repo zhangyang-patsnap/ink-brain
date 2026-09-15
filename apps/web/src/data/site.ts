@@ -43,3 +43,12 @@ export const maturityLabels = {
   verified: '已验证',
   production: '生产证据',
 } as const;
+
+export const homeMeta = {
+  eyebrow: 'ENGINEERED FOR CLARITY',
+  authorRole: 'Senior Backend Engineer',
+  statement: {
+    quote: '记录一条技术的来路，比记住结论更有用。',
+    cite: 'THE PATH, NOT THE ANSWER.',
+  },
+} as const;

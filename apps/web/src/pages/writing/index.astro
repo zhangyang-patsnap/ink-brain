@@ -1,26 +1,16 @@
 ---
 import { getCollection } from 'astro:content';
-import ArticleRow from '../../components/ArticleRow.astro';
-import PageIntro from '../../components/PageIntro.astro';
+import WritingHome from '../../components/WritingHome.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
-const articles = (await getCollection('articles', ({ data }) => !data.draft))
-  .sort((a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf());
+const articles = await getCollection('articles');
 ---
 
 <BaseLayout
   title="技术写作 — InkBrain"
   description="围绕 AI 应用架构、后端工程与运行时边界的技术文章。"
   section="writing"
+  bodyClass="writing-index-page"
 >
-  <PageIntro
-    title="技术写作"
-    description="关于 AI 应用、后端系统与运行时的技术文章，从设计思路写到实现与复盘。"
-    index="WRITING / 01"
-    note="记录实践，也记录尚未解答的问题。"
-  />
-
-  <section class="content-shell article-list" aria-label="文章列表">
-    {articles.map((article, index) => <ArticleRow article={article} featured={index === 0} />)}
-  </section>
+  <WritingHome articles={articles} />
 </BaseLayout>

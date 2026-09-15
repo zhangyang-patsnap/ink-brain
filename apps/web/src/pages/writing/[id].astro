@@ -2,6 +2,8 @@
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getArticleTag } from '../../data/taxonomy';
+import { siteMeta } from '../../data/site';
+import '../../styles/article-reader.css';
 
 export async function getStaticPaths() {
   const articles = await getCollection('articles', ({ data }) => !data.draft);
@@ -22,31 +24,46 @@ const publishedAt = new Intl.DateTimeFormat('zh-CN', {
   description={article.data.summary}
   section="writing"
 >
-  <article>
-    <header class="article-hero shell">
-      <a class="back-link" href="/writing/">← 返回技术写作</a>
-      <div class="article-hero-grid">
-        <span class="page-index">ARTICLE</span>
-        <div>
-          <h1>{article.data.title}</h1>
-          <p class="article-summary">{article.data.summary}</p>
-        </div>
-        <div class="article-side-meta">
+  <div class="reader-layout" id="article-top">
+    <article class="reader-document">
+      <nav class="reader-breadcrumb" aria-label="面包屑">
+        <a href="/writing/">文章</a><span aria-hidden="true">/</span><span>正文</span>
+      </nav>
+      <header class="reader-heading">
+        <h1>{article.data.title}</h1>
+        <p class="reader-summary">{article.data.summary}</p>
+        <div class="reader-meta">
+          <span class="reader-author">{siteMeta.author}</span>
           <time datetime={article.data.publishedAt.toISOString()}>{publishedAt}</time>
-          <span>{article.data.readingMinutes} 分钟阅读</span>
+          <span>约 {article.data.readingMinutes} 分钟阅读</span>
+          {article.data.tags.length > 0 && (
+            <span class="reader-tags" aria-label="文章标签">
+              {article.data.tags.map((tag) => (
+                <a href={`/writing/tag/${tag}/`}>#{getArticleTag(tag)?.label ?? tag}</a>
+              ))}
+            </span>
+          )}
         </div>
+      </header>
+      <details class="reader-mobile-toc" hidden>
+        <summary>本文目录</summary>
+        <nav aria-label="本文目录（移动端）"></nav>
+      </details>
+      <div class="reader-body" id="article-body"><Content /></div>
+      <footer class="reader-end">
+        <a href="/writing/">← 返回文章列表</a>
+        <a href="#article-top">返回顶部 ↑</a>
+      </footer>
+    </article>
+    <aside class="reader-toc" hidden>
+      <div class="reader-toc-inner">
+        <h2>本文目录</h2>
+        <nav aria-label="本文目录"></nav>
       </div>
-      <div class="article-taxonomy-bar">
-        <div class="taxonomy-links" aria-label="文章标签">
-          {article.data.tags.map((tag) => (
-            <a href={`/writing/tag/${tag}/`}>#{getArticleTag(tag)?.label ?? tag}</a>
-          ))}
-        </div>
-      </div>
-    </header>
-
-    <div class="article-prose">
-      <Content />
-    </div>
-  </article>
+    </aside>
+  </div>
+  <script>
+    import { setupArticleToc } from '../../lib/article-toc';
+    setupArticleToc();
+  </script>
 </BaseLayout>

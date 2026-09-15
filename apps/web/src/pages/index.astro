@@ -1,9 +1,11 @@
 ---
 import { getCollection } from 'astro:content';
 import ArrowLink from '../components/ArrowLink.astro';
+import TerritoryBand from '../components/TerritoryBand.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { frameworkTracks } from '../data/frameworks';
 import { ownedProjects } from '../data/projects';
-import { destinations, siteMeta } from '../data/site';
+import { homeMeta, siteMeta } from '../data/site';
 import { getArticleTag } from '../data/taxonomy';
 import { softwareTools, toolKindLabels } from '../data/tools';
 
@@ -11,20 +13,32 @@ const articles = (await getCollection('articles', ({ data }) => !data.draft))
   .sort((a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf());
 const knowledge = (await getCollection('knowledge')).sort((a, b) => a.data.order - b.data.order);
 const featured = articles[0];
-const featuredTag = featured?.data.tags[0] && getArticleTag(featured.data.tags[0]);
 const featuredProject = ownedProjects[0];
 const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').slice(0, 3);
+const dateFormat = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' });
+
+const relationshipIndex = [
+  { label: '知识专题', value: knowledge.length },
+  { label: '技术文章', value: articles.length },
+  { label: '自研项目', value: ownedProjects.length },
+  { label: '工具发布', value: softwareTools.length },
+  { label: '框架研究', value: frameworkTracks.length },
+];
 ---
 
 <BaseLayout section="home" bodyClass="home-page">
   <section class="hero shell" aria-labelledby="hero-title">
     <div class="hero-copy">
+      <p class="hero-eyebrow">{homeMeta.eyebrow}</p>
       <h1 id="hero-title">{siteMeta.tagline}</h1>
-      <p>
+      <p class="hero-intro">
         {siteMeta.intro.split('\n').map((line, index) => <>{index > 0 && <br />}{line}</>)}
       </p>
-      <p class="hero-signature">By {siteMeta.author}</p>
-      <div class="hero-entry-actions"><ArrowLink href="/writing/" label="开始阅读" /><a href="/projects/">看看我的项目</a></div>
+      <p class="hero-signature">By {siteMeta.author}<span>{homeMeta.authorRole}</span></p>
+      <div class="hero-entry-actions">
+        <ArrowLink href="/writing/" label="开始阅读" />
+        <a href="/projects/">看看我的项目</a>
+      </div>
     </div>
 
     <figure class="hero-visual" aria-label="水墨与知识节点组成的抽象网络">
@@ -37,33 +51,9 @@ const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').s
       />
     </figure>
 
-    <aside class="evidence-legend" aria-label="内容成熟度说明">
-      <strong>Evidence maturity</strong>
-      <ul>
-        <li><span class="legend-mark legend-mark-idea"></span>idea · 构思</li>
-        <li><span class="legend-mark legend-mark-studied"></span>studied · 已学习</li>
-        <li><span class="legend-mark legend-mark-implemented"></span>implemented · 已实现</li>
-        <li><span class="legend-mark legend-mark-verified"></span>verified · 已验证</li>
-      </ul>
-    </aside>
   </section>
 
-  <section class="territory-section shell" aria-label="主要内容区域">
-    <div class="territory-route" aria-hidden="true"><span></span></div>
-    <div class="territories">
-      {destinations.map((destination, index) => (
-        <a class="territory" href={destination.href}>
-          <span class="territory-id">
-            <span>{destination.id}</span>
-            <span class="territory-number">{String(index + 1).padStart(2, '0')}</span>
-          </span>
-          <h2>{destination.label}</h2>
-          <p>{destination.description}</p>
-        </a>
-      ))}
-    </div>
-
-  </section>
+  <TerritoryBand variant="b" />
 
   <section class="home-section shell" aria-labelledby="latest-content-title">
     <header class="section-header">
@@ -74,11 +64,18 @@ const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').s
     <div class="home-editorial-grid">
       {featured && <article class="featured-article">
         <div class="featured-copy">
+          <p class="catalog-eyebrow"><span>FEATURED ARTICLE</span><span>精选文章</span></p>
           <h3>{featured.data.title}</h3>
-          <p>{featured.data.summary}</p>
+          <p class="featured-summary">{featured.data.summary}</p>
+          <div class="featured-tags">
+            {featured.data.tags.map((tag) => {
+              const meta = getArticleTag(tag);
+              return meta ? <a href={`/writing/tag/${meta.slug}/`}>{meta.label}</a> : null;
+            })}
+          </div>
           <div class="featured-meta">
-            {featuredTag && <span>#{featuredTag.label}</span>}
-            <span>{featured.data.readingMinutes} MIN READ</span>
+            <span>{dateFormat.format(featured.data.publishedAt)}</span>
+            <span>{featured.data.readingMinutes} 分钟阅读</span>
           </div>
           <ArrowLink href={`/writing/${featured.id}/`} label="阅读全文" />
         </div>
@@ -88,14 +85,20 @@ const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').s
       </article>}
 
       <section class="index-panel" aria-labelledby="topic-reading-title">
-        <h3 id="topic-reading-title">专题阅读</h3>
+        <p class="catalog-eyebrow"><span>RELATIONSHIP INDEX</span></p>
+        <h3 id="topic-reading-title">内容索引</h3>
         <ul class="relationship-list">
-          {knowledge.map((entry, index) => (
-            <li><a href={`/knowledge/${entry.id}/`}>{entry.data.title}</a><span>{entry.data.items.length} 项</span><span>{String(index + 1).padStart(2, '0')}</span></li>
+          {relationshipIndex.map((entry) => (
+            <li><span>{entry.label}</span><span>{entry.value}</span></li>
           ))}
         </ul>
-        <ArrowLink href="/knowledge/" label="查看全部专题" />
+        <ArrowLink href="/knowledge/" label="探索全部专题" />
       </section>
+
+      <aside class="statement-panel" aria-label="站点主张">
+        <blockquote>{homeMeta.statement.quote}</blockquote>
+        <cite>{homeMeta.statement.cite}</cite>
+      </aside>
     </div>
   </section>
 
@@ -107,7 +110,8 @@ const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').s
     <div class="home-build-grid">
       {featuredProject && <article class="home-project-feature">
         <div class="catalog-eyebrow"><span>OWNED PROJECT</span><span>{featuredProject.demo ? 'DEMO' : featuredProject.status.toUpperCase()}</span></div>
-        <h3>{featuredProject.name}</h3><p>{featuredProject.tagline}</p>
+        <h3>{featuredProject.name}</h3>
+        <p>{featuredProject.tagline}</p>
         <div class="stack-register">{featuredProject.stack.map((item) => <span>{item}</span>)}</div>
         <ArrowLink href={`/projects/${featuredProject.slug}/`} label="了解项目" />
       </article>}
@@ -118,4 +122,5 @@ const featuredTools = softwareTools.filter((tool) => tool.kind !== 'web-tool').s
       </section>
     </div>
   </section>
+
 </BaseLayout>

@@ -1,52 +1,12 @@
 ---
+import ProjectDetail from '../../components/ProjectDetail.astro';
 import { ownedProjects } from '../../data/projects';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { renderMarkdown } from '../../lib/markdown.mjs';
-
 export function getStaticPaths() {
-  return ownedProjects.map((project) => ({ params: { slug: project.slug }, props: { project } }));
+  return ownedProjects.map(project => ({ params: { slug: project.slug }, props: { project } }));
 }
-
 const { project } = Astro.props;
-const repositoryUrls = project.repositoryUrls ?? (project.repositoryUrl ? [project.repositoryUrl] : []);
-const documentationUrls = project.documentationUrls ?? (project.documentationUrl ? [project.documentationUrl] : []);
-const statusLabels = { concept: '构思', building: '研发中', released: '已发布', verified: '已验证' } as const;
 ---
-
 <BaseLayout title={`${project.name} — 项目作品 — InkBrain`} description={project.tagline} section="projects">
-  <article>
-    <header class="project-hero shell">
-      <a class="back-link" href="/projects/">← 返回项目作品</a>
-      <div class="project-hero-grid">
-        <div class="project-sigil" aria-hidden="true">AF</div>
-        <div>
-          <div class="catalog-eyebrow"><span>{project.type}</span><span>{project.demo ? '示例项目' : statusLabels[project.status]}</span></div>
-          <h1>{project.name}</h1><p>{project.tagline}</p>
-        </div>
-        <dl class="project-facts">
-          <div><dt>STATUS</dt><dd>{statusLabels[project.status]}</dd></div>
-          <div><dt>RELEASE</dt><dd>{project.status === 'released' || project.status === 'verified' ? '已发布' : '尚未发布'}</dd></div>
-        </dl>
-      </div>
-    </header>
-
-    <div class="content-shell project-detail-grid">
-      <section class="project-overview">
-        <span class="section-kicker">POSITION</span><h2>项目定位</h2><p>{project.summary}</p>
-        <div class="project-disabled-actions">{project.projectUrl && <a href={project.projectUrl} target="_blank" rel="noopener noreferrer">访问项目 ↗</a>}{repositoryUrls.map((url, i) => <a href={url}>查看源码{repositoryUrls.length > 1 ? ` ${i + 1}` : ''} ↗</a>)}{documentationUrls.map((url, i) => <a href={url}>阅读文档{documentationUrls.length > 1 ? ` ${i + 1}` : ''} ↗</a>)}</div>
-      </section>
-      {project.documentation.trim() && <section class="project-documentation">
-        <span class="section-kicker">DOCUMENTATION</span><h2>文档说明</h2>
-        <div class="article-prose project-documentation-body" set:html={renderMarkdown(project.documentation)} />
-      </section>}
-      <section>
-        <span class="section-kicker">CAPABILITIES</span><h2>核心能力</h2>
-        <ol class="numbered-register">{project.capabilities.map((item: string) => <li>{item}</li>)}</ol>
-      </section>
-      <section>
-        <span class="section-kicker">TECHNOLOGY</span><h2>技术栈</h2>
-        <div class="stack-register large">{project.stack.map((item: string) => <span>{item}</span>)}</div>
-      </section>
-    </div>
-  </article>
+  <ProjectDetail project={project} />
 </BaseLayout>

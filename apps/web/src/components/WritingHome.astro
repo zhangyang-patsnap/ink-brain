@@ -1,0 +1,89 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import '../styles/writing-home.css';
+
+interface Props { articles: CollectionEntry<'articles'>[] }
+const articles = Astro.props.articles.filter(({ data }) => !data.draft).sort((a, b) =>
+  b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf() || a.id.localeCompare(b.id));
+const lead = articles[0];
+const remaining = Math.max(articles.length - 1, 0);
+const date = (value: Date) => new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(value);
+---
+
+<div class="writing-home" data-writing-home>
+  <header class="writing-intro">
+    <div class="writing-intro-copy">
+      <p class="writing-eyebrow">INKBRAIN / JOURNAL</p>
+      <h1>技术写作</h1>
+      <p class="writing-description">关于 AI 应用、后端工程与运行时。记录设计、实现与复盘。</p>
+    </div>
+    <div class="writing-tools">
+      <p class="writing-total">共 {articles.length} 篇文章</p>
+      {articles.length > 0 && (
+        <form class="writing-search" role="search" aria-label="文章搜索" data-writing-search hidden>
+          <label class="writing-search-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+            <input type="search" name="q" placeholder="搜索标题、摘要" aria-label="搜索文章标题或摘要" autocomplete="off" />
+          </label>
+          <button type="button" class="writing-clear" data-writing-clear hidden>清除</button>
+        </form>
+      )}
+    </div>
+  </header>
+
+  {lead ? (
+    <>
+      <article class="writing-lead" data-writing-lead>
+        <div class="writing-lead-title">
+          <p class="writing-eyebrow">最新选读</p>
+          <h2><a href={`/writing/${lead.id}/`}>{lead.data.title}</a></h2>
+          <div class="writing-meta">
+            <time datetime={lead.data.publishedAt.toISOString()}>{date(lead.data.publishedAt)}</time>
+            <span>{lead.data.readingMinutes} 分钟阅读</span>
+          </div>
+        </div>
+        <div class="writing-lead-summary">
+          <p>{lead.data.summary}</p>
+          <a class="writing-read" href={`/writing/${lead.id}/`} aria-label={`阅读：${lead.data.title}`}>阅读这篇文章</a>
+        </div>
+      </article>
+
+      <section class="writing-collection" aria-labelledby="writing-list-title" data-writing-collection hidden={remaining === 0}>
+        <div class="writing-list-heading">
+          <h2 id="writing-list-title" data-writing-list-title>继续阅读</h2>
+          <p data-writing-count role="status" aria-live="polite" aria-atomic="true">{remaining} 篇文章 · 按时间排序</p>
+        </div>
+        <div class="writing-grid">
+          {articles.map((article, index) => (
+            <article class="writing-card" data-writing-card data-search-text={`${article.data.title} ${article.data.summary}`} data-is-lead={index === 0 ? 'true' : 'false'} hidden={index === 0}>
+              <div class="writing-meta">
+                <time datetime={article.data.publishedAt.toISOString()}>{date(article.data.publishedAt)}</time>
+                <span>{article.data.readingMinutes} 分钟阅读</span>
+              </div>
+              <h3><a href={`/writing/${article.id}/`}>{article.data.title}</a></h3>
+              <p class="writing-card-summary">{article.data.summary}</p>
+              <a class="writing-read" href={`/writing/${article.id}/`} aria-label={`阅读：${article.data.title}`}>阅读全文</a>
+            </article>
+          ))}
+        </div>
+        <div class="writing-empty" data-writing-empty hidden>
+          <h3>没有找到相关文章</h3>
+          <p>试试其他关键词，或清除搜索查看全部文章。</p>
+          <button type="button" data-writing-clear>清除搜索</button>
+        </div>
+      </section>
+    </>
+  ) : (
+    <section class="writing-empty" aria-label="暂无文章">
+      <h2>文章正在准备中</h2>
+      <p>新的思考与实践，会陆续记录在这里。</p>
+      <a class="writing-read" href="/">返回首页 <span aria-hidden="true">↗</span></a>
+    </section>
+  )}
+</div>
+<script>
+  import { setupWritingSearch } from '../lib/writing-search';
+  document.querySelectorAll<HTMLElement>('[data-writing-home]').forEach(setupWritingSearch);
+</script>

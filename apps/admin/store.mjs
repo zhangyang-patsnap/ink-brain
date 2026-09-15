@@ -50,7 +50,7 @@ export async function seedContent(web) {
       state[kind].push(parseRecord(kind, record, record.id));
     }
   }
-  for (const kind of ["projects", "tools"])
+  for (const kind of ["projects", "tools", "skills"])
     state[kind] = (
       await readJson(path.join(web, `src/data/${kind}.json`), [])
     ).map((data) =>
@@ -79,6 +79,7 @@ export async function createStore(dir, web) {
   return {
     read: async () => {
       const state = await readJson(file);
+      state.skills ??= [];
       for (const topic of state.knowledge)
         topic.data = parseRecord("knowledge", topic, topic.id).data;
       return state;
@@ -86,6 +87,7 @@ export async function createStore(dir, web) {
     update(revision, mutate) {
       const run = chain.then(async () => {
         const state = await readJson(file);
+        state.skills ??= [];
         if (state.revision !== revision)
           throw Object.assign(
             new Error("内容已在其他窗口更新，请重新载入后再保存。"),
@@ -108,7 +110,7 @@ export async function createStore(dir, web) {
   };
 }
 export function publishedRecords(state, kind) {
-  const records = state[kind].filter(
+  const records = (state[kind] ?? []).filter(
     (record) => !record.archived && (kind === "articles" || record.included),
   );
   if (kind !== "knowledge") return records;
@@ -132,7 +134,7 @@ export function validatePublication(state) {
   const tags = tagListSchema.parse(state.tags);
   const knownTags = new Set(tags.map((tag) => tag.slug));
   for (const kind of kinds)
-    for (const record of state[kind]) {
+    for (const record of state[kind] ?? []) {
       parseRecord(kind, record, record.id);
       if (kind === "articles")
         for (const tag of record.data.tags)
@@ -147,6 +149,9 @@ export function validatePublication(state) {
       new Set(publishedRecords(state, kind).map((x) => x.id)),
     ]),
   );
+  for (const record of publishedRecords(state, 'skills'))
+    if (!record.data.fileUrl || !record.data.checksum)
+      throw new Error(`Skill「${record.data.name}」请先上传文件再发布`);
   for (const tool of publishedRecords(state, "tools"))
     if (
       tool.data.relatedProject &&

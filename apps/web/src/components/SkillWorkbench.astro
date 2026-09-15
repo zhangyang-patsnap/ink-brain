@@ -1,0 +1,39 @@
+---
+import type { Skill } from '../data/skills';
+import { skillCategories, sortSkills } from '../lib/skill-catalog.mjs';
+import SkillRow from './SkillRow.astro';
+import '../styles/skill-workbench.css';
+interface Props { skills: Skill[] }
+const skills: Skill[] = sortSkills(Astro.props.skills);
+const recommended = skills.filter(skill=>skill.featured);
+const remaining = skills.filter(skill=>!skill.featured);
+---
+<div class="skill-workbench" data-skill-workbench>
+  <header class="skill-hero"><div><p class="skill-eyebrow">SKILLS / WORKBENCH</p><h1>把复杂工作，拆成可调用的能力<span>。</span></h1><p class="skill-subtitle">按场景找到适合 Agent 的工作方法。</p></div><aside>MORE<br>CAPABILITIES.<br>A MORE CAPABLE YOU.</aside></header>
+  <div class="skill-workspace">
+    <aside class="skill-sidebar"><h2>能力分类</h2><div class="skill-filters" data-skill-filters role="group" aria-label="能力分类" hidden><button type="button" data-skill-category="all" aria-pressed="true" aria-controls="skill-results">全部</button>{skillCategories.map(category=><button type="button" data-skill-category={category.value} aria-pressed="false" aria-controls="skill-results">{category.label}</button>)}</div><noscript><p>全部能力均列于下方。</p></noscript><p class="skill-sidebar-note">BETTER METHODS.<br>CLEARER WORK.</p></aside>
+    <div id="skill-results" class="skill-results">
+      <p class="skill-count" role="status" data-skill-count>共 {skills.length} 个能力</p>
+      {recommended.length>0 && <section class="skill-group" data-skill-group><header><h2>推荐能力</h2><p>从这些工作方法开始</p></header><ul>{recommended.map(skill=><SkillRow skill={skill} />)}</ul></section>}
+      {remaining.length>0 && <section class="skill-group" data-skill-group><header><h2>{recommended.length ? '更多能力' : '全部能力'}</h2></header><ul>{remaining.map(skill=><SkillRow skill={skill} />)}</ul></section>}
+      <div class="skill-empty" data-skill-empty hidden={skills.length>0}><h2>{skills.length?'该分类还没有 Skill':'Skill 正在整理中'}</h2><p>{skills.length?'请选择其他分类，或查看全部能力。':'发布后的 Skill 会展示在这里。'}</p></div>
+      <footer class="skill-list-footer"><span>全部能力</span><span data-skill-total>共 {skills.length} 个能力</span></footer>
+    </div>
+  </div>
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-skill-workbench]').forEach(root=>{
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-skill-row]')];
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-skill-category]')];
+    buttons.forEach(button=>button.addEventListener('click',()=>{
+      const category=button.dataset.skillCategory;
+      let count=0;
+      rows.forEach(row=>{row.hidden=category!=='all' && row.dataset.category!==category;if(!row.hidden)count++;});
+      buttons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+      root.querySelectorAll<HTMLElement>('[data-skill-group]').forEach(group=>{group.hidden= !group.querySelector('[data-skill-row]:not([hidden])');});
+      root.querySelector<HTMLElement>('[data-skill-empty]')!.hidden=count>0;
+      root.querySelector<HTMLElement>('[data-skill-count]')!.textContent=`显示 ${count} 个能力，共 ${rows.length} 个`;
+    }));
+    root.querySelector<HTMLElement>('[data-skill-filters]')!.hidden=false;
+  });
+</script>

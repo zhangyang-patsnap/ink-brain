@@ -1,0 +1,55 @@
+---
+import TerritoryIcon from './TerritoryIcon.astro';
+import { destinations } from '../data/site';
+
+interface Props {
+  variant: 'a' | 'b' | 'c';
+}
+
+const { variant } = Astro.props;
+const entryLabels = ['进入写作', '探索专题', '浏览项目', '查看工具'];
+
+/* Station heights as a percentage of the band, left to right. The SVG paths
+   below are drawn through exactly these points so the marks sit on the line. */
+/* x/y are viewBox coordinates on the paths below, so marks sit on the line. */
+const stations = [
+  { x: 18, y: 14 },
+  { x: 40, y: 36 },
+  { x: 62, y: 60 },
+  { x: 84, y: 78 },
+];
+const curvePath =
+  'M0 14 H180 C280 14 300 36 400 36 C480 36 520 60 620 60 C700 60 740 78 840 78 H1000';
+const stepPath = 'M0 14 H180 V36 H400 V60 H620 V78 H1000';
+---
+
+<section class="territory-section shell" data-variant={variant} aria-label="主要内容区域">
+  <div class={`route-band route-band-${variant}`} aria-hidden="true">
+    {variant !== 'b' && (
+      <svg class="route-line" viewBox="0 0 1000 100" preserveAspectRatio="none" role="presentation">
+        <path d={variant === 'a' ? curvePath : stepPath} />
+      </svg>
+    )}
+    {stations.map((station, index) => (
+      <span class="route-station" style={`--x:${station.x}%;--y:${station.y}%`}>
+        <i class={`station-mark ${index % 2 === 0 ? 'station-square' : 'station-round'}`}></i>
+        <i class="station-drop"></i>
+      </span>
+    ))}
+  </div>
+
+  <div class="territories">
+    {destinations.map((destination, index) => (
+      <a class="territory" href={destination.href}>
+        <span class="territory-id">
+          <span>{destination.id}</span>
+          <span class="territory-number">{String(index + 1).padStart(2, '0')}</span>
+        </span>
+        <span class="territory-icon" aria-hidden="true"><TerritoryIcon index={index} /></span>
+        <h2>{destination.label}</h2>
+        <p>{destination.description}</p>
+        <span class="territory-entry">{entryLabels[index]} <span aria-hidden="true">→</span></span>
+      </a>
+    ))}
+  </div>
+</section>

@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { skills, type Skill } from '../../data/skills';
+import { skillCategories, skillOrigins } from '../../lib/skill-catalog.mjs';
+import { renderMarkdown } from '../../lib/markdown.mjs';
+import '../../styles/skill-workbench.css';
+export function getStaticPaths(){return skills.map(skill=>({params:{slug:skill.slug},props:{skill}}));}
+const { skill } = Astro.props as { skill: Skill };
+---
+<BaseLayout title={`${skill.name} — Skill — InkBrain`} description={skill.summary} section="skills">
+  <article class="skill-detail">
+    <a href="/skills/" class="skill-back">返回 Skill 工作台</a>
+    <header class="skill-detail-header"><p class="skill-eyebrow">SKILL / {skillCategories.find(c=>c.value===skill.category)?.label}</p><h1>{skill.name}</h1><p>{skill.summary}</p><div class="skill-detail-actions"><span class:list={['skill-origin',skill.origin]}>{skillOrigins[skill.origin]}</span>{skill.origin==='reference'&&<a href={skill.sourceUrl} target="_blank" rel="noopener noreferrer">原始链接（新窗口）</a>}{skill.fileUrl&&<a class="skill-download" href={skill.fileUrl} download={skill.fileName}>下载 Skill</a>}</div></header>
+    <dl class="skill-facts"><div><dt>文件</dt><dd>{skill.fileName}</dd></div><div><dt>大小</dt><dd>{(skill.fileSize/1024).toFixed(1)} KB</dd></div></dl>
+    {skill.origin==='reference'&&<p class="skill-source">原始来源：<a href={skill.sourceUrl} target="_blank" rel="noopener noreferrer">{skill.sourceUrl}</a></p>}
+    <section class="skill-document"><h2>使用说明</h2>{skill.documentation ? <div set:html={renderMarkdown(skill.documentation)} /> : <p>作者暂未填写详细说明，请先查看来源与文件内容。</p>}</section>
+    <footer class="skill-download-note"><p>下载不代表安装或运行。使用前请阅读 Skill 内容、依赖与授权说明。</p></footer>
+  </article>
+</BaseLayout>

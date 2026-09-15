@@ -1,0 +1,76 @@
+---
+import type { OwnedProject } from '../data/projects';
+import { projectStatusLabels } from '../lib/project-document.mjs';
+import '../styles/project-showcase.css';
+interface Props { projects: OwnedProject[]; inline?: boolean }
+const { projects, inline = false } = Astro.props;
+const typeLabels = { 'Agent Framework': 'Agent 框架', Application: '应用系统', Library: '基础库', Other: '其他' };
+const types = [...new Set(projects.map(project => project.type))];
+---
+<div class="project-showcase" data-inline={inline ? 'true' : undefined}>
+  <header class="project-showcase-heading">
+    <div>
+      <h1>从想法，<br />到运行中的系统。</h1>
+      <p class="project-showcase-intro">在这里记录我构建的后端系统与技术实践，<br class="project-intro-break" />从问题出发，用工程化的方式寻找答案。</p>
+    </div>
+    <p class="project-showcase-note">IDEAS<br />INTO<br />RUNNING<br />SYSTEMS</p>
+  </header>
+  <div class="project-showcase-toolbar">
+    <div class="project-type-filters" role="group" aria-label="项目类型" hidden>
+      <button type="button" data-project-type="" aria-pressed="true">全部</button>
+      {types.map(type => <button type="button" data-project-type={type} aria-pressed="false">{typeLabels[type]}</button>)}
+    </div>
+    <p>用合适的技术，解决真实的问题。</p>
+    <span class="project-filter-status" role="status" aria-live="polite"></span>
+  </div>
+  <section class="project-showcase-grid" aria-label="项目作品">
+    {projects.map((project, index) => (
+      <article class:list={['project-exhibit', { 'project-exhibit-lead': index === 0 }]} data-project-category={project.type}>
+        <a class="project-exhibit-link" href={`/projects/${project.slug}/`} data-project-select={inline ? project.slug : undefined} aria-current={inline && index === 0 ? 'true' : undefined}>
+          <div class="project-exhibit-heading">
+            <div class="project-exhibit-heading-main">
+              <p class="project-exhibit-type">{project.type}</p>
+              <h2>{project.name}</h2>
+            </div>
+            <p class="project-exhibit-note">
+              {(project.stack.length ? project.stack.slice(0, 3) : [project.type, projectStatusLabels[project.status]]).map(item => <span>{item}</span>)}
+            </p>
+          </div>
+          <p class="project-exhibit-tagline">{project.tagline}</p>
+          {project.summary && project.summary !== project.tagline && <p class="project-exhibit-summary">{project.summary}</p>}
+          <div class="project-exhibit-footer">
+            <div class="project-exhibit-meta">
+              <span class="project-exhibit-state"><span>状态</span><strong>{projectStatusLabels[project.status]}</strong>{project.demo && <span>示例</span>}</span>
+              {project.stack.length > 0 && <span class="project-exhibit-tech"><span>技术栈</span> {project.stack.join(' / ')}</span>}
+            </div>
+            <span class="project-exhibit-cta">项目详情 <span aria-hidden="true">→</span></span>
+          </div>
+        </a>
+      </article>
+    ))}
+    {inline && <blockquote class="project-exhibit-quote" hidden={projects.length < 2 || projects.length % 2 !== 0}><p>“ 构建系统，<br />也是在构建更好的自己。 ”</p><cite>— INKBRAIN</cite></blockquote>}
+    {projects.length === 0 && <p class="project-showcase-empty">暂时没有项目作品，后续会在这里记录新的实现。</p>}
+  </section>
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>('.project-showcase').forEach(showcase => {
+    if (showcase.dataset.inline === 'true') return;
+    const filters = showcase.querySelector<HTMLElement>('.project-type-filters');
+    if (!filters) return;
+    const cards = [...showcase.querySelectorAll<HTMLElement>('[data-project-category]')];
+    filters.hidden = cards.length === 0;
+    const buttons = [...filters.querySelectorAll<HTMLButtonElement>('button')];
+    buttons.forEach(button => button.addEventListener('click', () => {
+      const type = button.dataset.projectType;
+      let visible = 0;
+      cards.forEach(card => {
+        card.hidden = Boolean(type && card.dataset.projectCategory !== type);
+        card.classList.toggle('project-exhibit-lead', !card.hidden && visible === 0);
+        if (!card.hidden) visible++;
+      });
+      buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      const status = showcase.querySelector('.project-filter-status');
+      if (status) status.textContent = `${button.textContent}：${visible} 项作品`;
+    }));
+  });
+</script>

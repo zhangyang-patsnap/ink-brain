@@ -152,6 +152,8 @@ test("authentication, revisioned editing, private uploads and direct publication
   );
   const data = new FormData();
   const project = structuredClone(state.projects[0]);
+  project.data.license = "Apache-2.0";
+  project.data.languages = ["Rust", "TypeScript"];
   project.data.repositoryUrls = [
     "https://github.com/example/core",
     "https://github.com/example/sdk",
@@ -170,6 +172,8 @@ test("authentication, revisioned editing, private uploads and direct publication
   );
   assert.equal(projectSaved.status, 200);
   state = (await projectSaved.json()).state;
+  assert.equal(state.projects.find((item) => item.id === project.id).data.license, "Apache-2.0");
+  assert.deepEqual(state.projects.find((item) => item.id === project.id).data.languages, ["Rust", "TypeScript"]);
   assert.deepEqual(
     state.projects.find((item) => item.id === project.id).data.repositoryUrls,
     project.data.repositoryUrls,
@@ -408,7 +412,7 @@ test("real Astro build supports an empty publication without stale demo content"
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const service = await createApp({ dir });
   const state = await service.store.read();
-  for (const kind of ["articles", "knowledge", "projects", "tools"])
+  for (const kind of ["articles", "knowledge", "projects", "tools", "skills"])
     state[kind] = [];
   const task = await service.publisher.start(state);
   await task.promise;

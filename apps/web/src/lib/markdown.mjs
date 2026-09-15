@@ -6,7 +6,7 @@ export function renderMarkdown(source) {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, "img", "h1", "h2"],
     allowedAttributes: {
       a: ["href", "title", "rel"],
-      img: ["src", "alt", "title"],
+      img: ["src", "alt", "title", "width", "height"],
       code: ["class"],
     },
     allowedSchemes: ["https", "http", "mailto"],

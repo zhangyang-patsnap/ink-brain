@@ -1,23 +1,11 @@
 ---
 import { getCollection } from 'astro:content';
-import ArrowLink from '../../components/ArrowLink.astro';
-import PageIntro from '../../components/PageIntro.astro';
+import TopicExhibition from '../../components/TopicExhibition.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { topicCatalog } from '../../data/topic-content';
-const entries = (await getCollection('knowledge')).sort((a, b) => a.data.order - b.data.order);
+const entries = await getCollection('knowledge');
 const catalog = await topicCatalog();
-const topics = entries.map((entry) => ({ entry, items: entry.data.items.flatMap((ref) => {
-  const item = catalog.get(`${ref.kind}:${ref.id}`);
-  return item ? [item] : [];
-}) }));
 ---
-<BaseLayout title="专题 — InkBrain" description="按顺序阅读文章、探索项目、使用工具，从理解走向实践。" section="knowledge">
-  <PageIntro title="专题" description="将文章、项目与工具串成一条阅读与实践的路径。" index="COLLECTIONS / 02" note={`${entries.length} 个专题`} />
-  <section class="content-shell topic-index" aria-label="专题列表">
-    {topics.map(({ entry, items }, index) => <article class="topic-preview">
-      <div class="topic-preview-index"><span>{String(index + 1).padStart(2, '0')}</span><span>{items.length} 项内容</span></div>
-      <div class="topic-preview-main"><h2><a href={`/knowledge/${entry.id}/`}>{entry.data.title}</a></h2><p class="topic-thesis">{entry.data.summary}</p><div class="concept-register">{[...new Set(items.map((item) => item.type))].map((type) => <span>{type}</span>)}</div></div>
-      <div class="topic-preview-path"><span>从这里开始</span>{items[0] ? <strong>{items[0].title}</strong> : <p>内容正在整理中</p>}<ArrowLink href={`/knowledge/${entry.id}/`} label="进入专题" /></div>
-    </article>)}
-  </section>
+<BaseLayout title="专题 — InkBrain" description="按顺序阅读文章、探索项目、使用工具，从理解走向实践。" section="knowledge" bodyClass="topic-exhibition-page">
+  <TopicExhibition entries={entries} catalog={catalog} />
 </BaseLayout>

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import YAML from "yaml";
 import {
@@ -62,11 +62,11 @@ export async function createPublisher({
           if (kind === "articles") data.draft = false;
           await fs.writeFile(
             path.join(destination, `${record.id}.md`),
-            `---\n${YAML.stringify(data)}---\n\n${cleanMarkdown(record.body)}\n`,
+            `---\n${YAML.stringify(data)}---\n\n${cleanMarkdown(record.body).replace(/<pre>[\s\S]*?<\/pre>/g, (block) => block.replace(/\r?\n/g, "&#10;"))}\n`,
           );
         }
       }
-      for (const kind of ["projects", "tools"])
+      for (const kind of ["projects", "tools", "skills"])
         await atomicJson(
           path.join(stage, `src/data/${kind}.json`),
           publishedRecords(state, kind).map((x) => x.data),
@@ -81,6 +81,19 @@ export async function createPublisher({
         state.settings,
       );
       const manifest = await readJson(path.join(dir, "assets.json"), []);
+      for (const record of publishedRecords(state, 'skills')) {
+        const skill = record.data;
+        const demoPath = '/skill-examples/fixing-accessibility.md';
+        const asset = manifest.find(a => a.url === skill.fileUrl);
+        if (skill.fileUrl !== demoPath && (!asset || asset.sha256 !== skill.checksum || asset.size !== skill.fileSize))
+          throw new Error(`Skill「${skill.name}」的文件信息不匹配，请重新上传`);
+        const file = skill.fileUrl === demoPath
+          ? path.join(stage, 'public', demoPath)
+          : path.join(dir, 'uploads', asset.filename);
+        const bytes = await fs.readFile(file);
+        if (createHash('sha256').update(bytes).digest('hex') !== skill.checksum || bytes.length !== skill.fileSize)
+          throw new Error(`Skill「${skill.name}」的文件校验失败`);
+      }
       for (const tool of publishedRecords(state, "tools")) {
         if (
           tool.data.availability === "available" &&
@@ -103,6 +116,7 @@ export async function createPublisher({
         knowledge: publishedRecords(state, "knowledge"),
         projects: publishedRecords(state, "projects"),
         tools: publishedRecords(state, "tools"),
+        skills: publishedRecords(state, "skills"),
         settings: state.settings,
       });
       const refs = new Set(

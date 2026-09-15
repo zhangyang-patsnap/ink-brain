@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { topicItems } from "../web/src/lib/topic-items.mjs";
 import { renderMarkdown } from "../web/src/lib/markdown.mjs";
+import { skillCategories } from "../web/src/lib/skill-catalog.mjs";
 
-export const kinds = ["articles", "knowledge", "projects", "tools"];
+export const kinds = ["articles", "knowledge", "projects", "tools", "skills"];
 export const slug = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
@@ -70,6 +71,29 @@ const common = {
   summary: title,
 };
 export const dataSchemas = {
+  skills: z.object({
+    slug, name: title, summary: title,
+    category: z.enum(skillCategories.map(item => item.value)),
+    origin: z.enum(['original', 'reference']),
+    sourceUrl: safeUrl.default(''),
+    monogram: z.string().trim().min(1).max(5),
+    version: z.string().max(100).default(''),
+    documentation: z.string().max(500000).default(''),
+    featured: z.boolean().default(false),
+    order: z.number().int().min(0).default(0),
+    demo: z.boolean().default(false),
+    fileUrl: z.string().regex(/^(?:|\/media\/[a-f0-9-]+\.(?:md|markdown|zip|skill)|\/skill-examples\/fixing-accessibility\.md)$/).default(''),
+    fileName: z.string().max(255).default(''),
+    fileSize: z.number().int().min(0).max(256 * 1024 * 1024).default(0),
+    checksum: z.string().regex(/^(?:|[a-f0-9]{64})$/).default(''),
+  }).superRefine((data, ctx) => {
+    if (data.origin === 'reference' && !data.sourceUrl.startsWith('https://'))
+      ctx.addIssue({ code: 'custom', path: ['sourceUrl'], message: '引用型 Skill 必须填写原始 HTTPS 链接' });
+    if (data.fileUrl && (!data.fileName || !data.checksum))
+      ctx.addIssue({ code: 'custom', path: ['fileUrl'], message: 'Skill 文件需要名称和 SHA-256，请重新上传' });
+    if (data.fileUrl.startsWith('/skill-examples/') && !data.demo)
+      ctx.addIssue({ code: 'custom', path: ['fileUrl'], message: '示例附件仅用于 Demo' });
+  }),
   articles: z.object({
     ...common,
     publishedAt: date,
@@ -107,6 +131,8 @@ export const dataSchemas = {
     tagline: title,
     summary: text,
     stack: list,
+    license: z.string().max(240).optional(),
+    languages: list.optional(),
     capabilities: list,
     evidence: list,
     documentation: text,

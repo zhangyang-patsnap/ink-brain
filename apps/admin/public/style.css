@@ -27,7 +27,7 @@ select,
 textarea {
   font: inherit;
 }
-button,
+button:not(.toastui-editor-toolbar-icons),
 .button {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -38,7 +38,7 @@ button,
   text-decoration: none;
   display: inline-block;
 }
-button:hover,
+button:not(.toastui-editor-toolbar-icons):hover,
 .button:hover {
   background: var(--soft);
 }
@@ -90,24 +90,28 @@ button:disabled {
   align-items: center;
   gap: 8px;
 }
-.theme-toggle {
+/* Outrank the generic button:not(.toastui-editor-toolbar-icons) rule. */
+.header-tools .theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
   min-height: 30px;
+  flex-shrink: 0;
   padding: 0;
   border: 0;
   border-radius: 5px;
   background: var(--soft);
   color: var(--muted);
 }
-.theme-toggle:hover {
+.header-tools .theme-toggle:hover {
   background: var(--soft);
   color: var(--accent);
 }
-.theme-toggle svg {
+.header-tools .theme-toggle svg {
+  display: block;
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   fill: none;
@@ -224,6 +228,62 @@ small {
 }
 .markdown-toolbar > button {
   min-height: 50px;
+  white-space: nowrap;
+}
+.editor-mode-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.editor-mode-tabs button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+.editor-mode-tabs button.active {
+  color: var(--accent);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.toast-editor-host .toastui-editor-defaultUI {
+  border-color: var(--line);
+}
+.toast-editor-host .toastui-editor-tooltip {
+  display: none !important;
+}
+.toast-editor-host .toastui-editor-mode-switch,
+.toast-editor-host .toastui-editor-md-tab-container {
+  display: none !important;
+}
+.toast-editor-host .toastui-editor-main,
+.toast-editor-host .toastui-editor-md-container,
+.toast-editor-host .toastui-editor-ww-container {
+  background: var(--panel);
+}
+.toast-editor-host .toastui-editor-contents,
+.toast-editor-host .toastui-editor-md-container .CodeMirror {
+  color: var(--ink);
+  font-family: Inter, "PingFang SC", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.toast-editor-host .toastui-editor-contents img {
+  max-width: 100%;
+  cursor: pointer;
+  display: block;
+  resize: both;
+  overflow: auto;
+}
+.markdown-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 .source-import {
@@ -490,6 +550,16 @@ small {
   padding: 0;
   overflow: hidden;
 }
+.skill-editor .editor-meta-card { padding: clamp(16px, 3vw, 28px); }
+.skill-editor .fields > .wide { grid-column: 1 / -1; min-width: 0; }
+.skill-editor code { overflow-wrap: anywhere; }
+.skill-editor textarea[name="documentation"] { min-height: 280px; }
+.skill-editor .fields { align-items: start; gap: 24px 28px; }
+.skill-editor .field.check { align-self: center; flex-direction: row; align-items: center; padding-top: 26px; }
+.skill-editor .field.check input { width: 20px; height: 20px; margin: 0; }
+.skill-editor .skill-upload-note { color: var(--muted); }
+.skill-compact-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(100px, .7fr) minmax(100px, .7fr); gap: 18px; align-items: start; }
+@media (max-width: 720px) { .skill-compact-row { grid-template-columns: 1fr; gap: 18px; } }
 .article-editor {
   max-width: 1080px;
 }

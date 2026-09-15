@@ -47,6 +47,7 @@ const extensions = [
   ".htm",
   ".md",
   ".markdown",
+  ".skill",
 ];
 export async function createApp(options = {}) {
   const host = options.host ?? process.env.ADMIN_HOST ?? "127.0.0.1";
@@ -236,7 +237,7 @@ export async function createApp(options = {}) {
           ? null
           : Object.assign(
               new Error(
-                "支持 HTML、Markdown、PNG、JPEG、WebP、PDF、DMG、ZIP、tar.gz 和 VSIX",
+                "支持 HTML、Markdown、PNG、JPEG、WebP、PDF、DMG、ZIP、tar.gz、VSIX 和 SKILL",
               ),
               { status: 400 },
             ),

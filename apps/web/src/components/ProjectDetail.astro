@@ -1,0 +1,71 @@
+---
+import type { OwnedProject } from '../data/projects';
+import { projectDocument, projectLinks, projectStatusLabels } from '../lib/project-document.mjs';
+import ProjectDirectory from './ProjectDirectory.astro';
+import '../styles/project-showcase.css';
+interface Props { project: OwnedProject; embedded?: boolean }
+const { project, embedded = false } = Astro.props;
+const Title = embedded ? 'h2' : 'h1';
+const SectionTitle = embedded ? 'h3' : 'h2';
+const repositories = projectLinks(project.repositoryUrls, project.repositoryUrl);
+const documents = projectLinks(project.documentationUrls, project.documentationUrl);
+const [destination] = projectLinks([], project.projectUrl);
+const { html, toc } = projectDocument(project.documentation, { startLevel: embedded ? 3 : 2 });
+const hasCapabilities = project.capabilities.length > 0;
+const typeLabels = { 'Agent Framework': 'Agent 框架', Application: '应用系统', Library: '基础库', Other: '其他' };
+const resourceGroups = [
+  { label: '访问项目', urls: destination ? [destination] : [], primary: true },
+  { label: '源码仓库', urls: repositories, primary: false },
+  { label: '项目文档', urls: documents, primary: false },
+];
+const missingResources = resourceGroups.filter(group => !group.urls.length).map(group => group.label);
+---
+<article class:list={['project-sheet', { 'project-sheet-embedded': embedded }]} id="project-top">
+  {!embedded && <a class="project-sheet-back" href="/projects/">← 返回作品展台</a>}
+  <div class="project-sheet-paper">
+    <header class="project-sheet-heading">
+      <div class="project-sheet-heading-main">
+        <p class="project-label">{project.type}</p>
+        <Title id="project-title" tabindex="-1">{project.name}</Title>
+        <div class="project-sheet-subtitle">
+          <p class="project-sheet-tagline">{project.tagline}</p>
+          <p class="project-sheet-status">状态 <strong>{projectStatusLabels[project.status]}</strong>{project.demo && <span>示例项目</span>}</p>
+        </div>
+        <div class="project-resources" role="group" aria-label="项目资源">
+          {resourceGroups.map(group => group.urls.length
+            ? group.urls.map((url: string, index: number) => <a class:list={{ 'project-resource-primary': group.primary }} href={url} target="_blank" rel="noopener noreferrer" aria-label={`${group.label}${group.urls.length > 1 ? ` ${index + 1}` : ''}（新标签页）`}>{group.label}{group.urls.length > 1 ? ` ${index + 1}` : ''} <span aria-hidden="true">↗</span></a>)
+            : <button type="button" disabled aria-describedby="project-resource-note">{group.label} <span>未提供</span></button>)}
+        </div>
+        <p class="project-resource-note" id="project-resource-note">{missingResources.length ? `尚未提供${missingResources.join('、')}地址。` : '外部链接将在新标签页打开。'}</p>
+      </div>
+      <p class="project-sheet-note" aria-label="项目类别">{project.type.split(' ').map(word => <span>{word}</span>)}</p>
+    </header>
+    <dl class="project-sheet-facts">
+      <div><dt>项目类型</dt><dd>{typeLabels[project.type]}</dd></div>
+      <div><dt>技术栈</dt><dd>{project.stack.join(' / ') || '未提供'}</dd></div>
+      <div><dt>代码协议</dt><dd>{project.license?.trim() || '未提供'}</dd></div>
+      <div><dt>主要语言</dt><dd>{project.languages?.join(' / ') || '未提供'}</dd></div>
+    </dl>
+    <details class="project-mobile-directory"><summary>目录</summary><ProjectDirectory toc={toc} capabilities={hasCapabilities} introduction={Boolean(project.summary)} /></details>
+    <div class="project-sheet-layout">
+      <div class="project-sheet-document">
+        {project.summary && <section class="project-overview-copy" aria-labelledby="project-introduction"><SectionTitle class="project-section-title" id="project-introduction">项目介绍</SectionTitle><p>{project.summary}</p></section>}
+        {hasCapabilities && <section class="project-capabilities" aria-labelledby="project-capabilities">
+          <SectionTitle class="project-section-title" id="project-capabilities">核心能力</SectionTitle>
+          <ul>{project.capabilities.map(item => <li>{item}</li>)}</ul>
+        </section>}
+        <section class="project-readme-section" id="project-readme" aria-label="项目文档">
+          {toc.length === 0 && <SectionTitle class="project-section-title">项目文档</SectionTitle>}
+          {project.documentation.trim() ? <div class="project-readme" set:html={html} /> : <p class="project-readme-empty">暂未提供 README。</p>}
+        </section>
+      </div>
+      <aside class="project-sheet-rail">
+        <div class="project-desktop-directory"><p>目录</p><ProjectDirectory toc={toc} capabilities={hasCapabilities} introduction={Boolean(project.summary)} /></div>
+        <p class="project-sheet-colophon" aria-hidden="true">GOOD<br />SYSTEMS<br />BETTER<br />THINKING</p>
+      </aside>
+    </div>
+  </div>
+</article>
+<script>
+  import '../lib/project-directory';
+</script>

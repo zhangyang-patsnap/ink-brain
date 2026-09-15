@@ -1,0 +1,64 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { topicCatalog } from '../data/topic-content';
+import { topicSequence } from '../lib/topic-preview.mjs';
+import '../styles/topic-guide.css';
+
+interface Props {
+  entry: CollectionEntry<'knowledge'>;
+  catalog: Awaited<ReturnType<typeof topicCatalog>>;
+}
+const { entry, catalog } = Astro.props;
+const { items, total, counts } = topicSequence(entry.data.items, catalog);
+const actions: Record<string, string> = { '文章': '阅读文章', '项目': '查看项目', '工具': '使用工具' };
+const filters = [{ type: 'all', label: '全部', count: total }, ...['文章', '项目', '工具'].map(type => ({ type, label: type, count: counts.find(item => item.type === type)?.count ?? 0 }))];
+---
+
+<article class="topic-guide" data-topic-guide>
+  <a class="topic-guide-back" href="/knowledge/"><span aria-hidden="true">←</span> 返回专题展厅</a>
+  <header class="topic-guide-intro">
+    <p class="topic-guide-eyebrow">专题导览 <span aria-hidden="true">/</span> COLLECTION</p>
+    <h1>{entry.data.title}</h1>
+    <p class="topic-guide-summary">{entry.data.summary}</p>
+    <p class="topic-guide-counts"><strong>{total} 项内容</strong>{counts.map(({ type, count }) => <span>{type} {count}</span>)}</p>
+  </header>
+
+  <section class="topic-guide-sequence" aria-labelledby="topic-guide-sequence-title">
+    <header class="topic-guide-section-heading">
+      <h2 id="topic-guide-sequence-title">专题内容</h2>
+      {total > 1 && <p>按编排顺序，连接理解与实践</p>}
+    </header>
+    {total > 0 && (
+      <div class="topic-guide-filter-bar" data-topic-filter-bar hidden>
+        <div class="topic-guide-filters" role="group" aria-label="按内容类型筛选">
+          {filters.map(filter => <button type="button" data-topic-filter={filter.type} aria-pressed={filter.type === 'all' ? 'true' : 'false'} aria-controls="topic-guide-results">{filter.label}<span>{filter.count}</span></button>)}
+        </div>
+        <span class="topic-guide-filter-status" data-topic-filter-status role="status" aria-atomic="true">显示全部 {total} 项内容</span>
+      </div>
+    )}
+    {items.length ? (
+      <ol class="topic-guide-items" id="topic-guide-results" role="list">
+        {items.map((item, index) => (
+          <li data-topic-item={item.type} value={index + 1}>
+            <a class="topic-guide-entry" href={item.href} aria-labelledby={`topic-guide-title-${index} topic-guide-action-${index}`}>
+              <span class="topic-guide-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+              <div class="topic-guide-entry-body">
+                <span class="topic-guide-type">{item.type}</span>
+                <h3 id={`topic-guide-title-${index}`}>{item.title}</h3>
+                <p>{item.summary}</p>
+              </div>
+              <span class="topic-guide-action" id={`topic-guide-action-${index}`}>{actions[item.type] ?? '查看内容'} <span aria-hidden="true">↗</span></span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <div class="topic-guide-empty"><p>专题内容正在整理中</p><span>文章、项目与工具将陆续加入，欢迎之后再来看看。</span></div>
+    )}
+    {total > 0 && <div class="topic-guide-filter-empty" data-topic-filter-empty hidden><p data-topic-filter-empty-text></p><button type="button" data-topic-filter-reset>查看全部内容 <span aria-hidden="true">→</span></button></div>}
+  </section>
+</article>
+<script>
+  import { setupTopicFilters } from '../lib/topic-filters';
+  document.querySelectorAll<HTMLElement>('[data-topic-guide]').forEach(setupTopicFilters);
+</script>

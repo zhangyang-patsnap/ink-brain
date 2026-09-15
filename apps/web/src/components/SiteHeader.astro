@@ -1,6 +1,6 @@
 ---
 interface Props {
-  active: 'home' | 'writing' | 'knowledge' | 'projects' | 'tools' | 'about';
+  active: 'home' | 'writing' | 'knowledge' | 'projects' | 'tools' | 'skills' | 'about';
 }
 
 const { active } = Astro.props;
@@ -10,6 +10,7 @@ const navItems = [
   { id: 'knowledge', label: '专题', href: '/knowledge/' },
   { id: 'projects', label: '项目', href: '/projects/' },
   { id: 'tools', label: '工具', href: '/tools/' },
+  { id: 'skills', label: 'Skill', href: '/skills/' },
   { id: 'about', label: '关于', href: '/about/' },
 ] as const;
 ---
@@ -46,6 +47,11 @@ const navItems = [
           ))}
         </nav>
       </details>
+      <button class="style-toggle" type="button" aria-label="当前风格：纸上；切换为阅读工作台" title="当前：纸上 · 切换为阅读工作台">
+        <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"></path>
+        </svg>
+      </button>
     </div>
   </div>
 </header>
@@ -63,8 +69,26 @@ const navItems = [
     button.addEventListener('click', () => {
       const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
       document.documentElement.dataset.theme = next;
-      localStorage.setItem('inkbrain-theme', next);
+      try { localStorage.setItem('inkbrain-theme', next); } catch { /* Optional preference storage. */ }
       applyButtonState(button);
+    });
+  });
+
+  const applyStyleButtonState = (button: HTMLButtonElement) => {
+    const workbench = document.documentElement.dataset.style === 'workbench';
+    const current = workbench ? '阅读工作台' : '纸上';
+    const next = workbench ? '纸上' : '阅读工作台';
+    button.setAttribute('aria-label', `当前风格：${current}；切换为${next}`);
+    button.title = `当前：${current} · 切换为${next}`;
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('.style-toggle').forEach((button) => {
+    applyStyleButtonState(button);
+    button.addEventListener('click', () => {
+      const next = document.documentElement.dataset.style === 'workbench' ? 'paper' : 'workbench';
+      document.documentElement.dataset.style = next;
+      try { localStorage.setItem('inkbrain-style', next); } catch { /* Optional preference storage. */ }
+      applyStyleButtonState(button);
     });
   });
 </script>

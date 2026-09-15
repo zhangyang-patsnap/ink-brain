@@ -1,0 +1,12 @@
+---
+interface Props { toc: { id: string; label: string; depth: number }[]; capabilities: boolean; introduction?: boolean }
+const { toc, capabilities, introduction = false } = Astro.props;
+const firstId = introduction ? 'project-introduction' : capabilities ? 'project-capabilities' : toc[0]?.id ?? 'project-readme';
+---
+<nav class="project-directory" aria-label="项目内容目录">
+  {introduction && <a href="#project-introduction" aria-current="location">项目介绍</a>}
+  {capabilities && <a href="#project-capabilities" aria-current={firstId === 'project-capabilities' ? 'location' : undefined}>核心能力</a>}
+  {toc.length > 0
+    ? <ol>{toc.map(item => <li class:list={{ 'project-directory-nested': item.depth > 0 }}><a href={`#${item.id}`} aria-current={firstId === item.id ? 'location' : undefined}><span set:html={item.label} /></a></li>)}</ol>
+    : <a href="#project-readme" aria-current={firstId === 'project-readme' ? 'location' : undefined}>项目文档</a>}
+</nav>

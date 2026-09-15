@@ -1,0 +1,71 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { topicCatalog } from '../data/topic-content';
+import { topicPreview } from '../lib/topic-preview.mjs';
+import '../styles/topic-exhibition.css';
+
+interface Props {
+  entries: CollectionEntry<'knowledge'>[];
+  catalog: Awaited<ReturnType<typeof topicCatalog>>;
+}
+const { catalog } = Astro.props;
+const topics = [...Astro.props.entries]
+  .sort((a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id))
+  .map(entry => ({ entry, ...topicPreview(entry.data.items, catalog) }));
+---
+
+<div class="topic-exhibition-home">
+  <header class="topic-exhibition-intro">
+    <div>
+      <p class="topic-exhibition-eyebrow">专题 / COLLECTIONS</p>
+      <h1><span>沿着一个主题，</span><span>从理解走向实践。</span></h1>
+      <p class="topic-exhibition-description">把文章、项目与工具，串成一条有顺序的探索路径。</p>
+    </div>
+    <p class="topic-exhibition-total"><strong>{topics.length}</strong> 个专题<span>阅读 · 实践 · 探索</span></p>
+  </header>
+
+  {topics.length ? (
+    <section class="topic-exhibition-list" aria-label="专题展厅">
+      {topics.map(({ entry, total, counts, preview }, index) => (
+        <article class:list={['topic-exhibit', `topic-exhibit-tone-${index % 3}`, { 'topic-exhibit-reversed': index % 2 === 1 }]} aria-labelledby={`topic-label-${entry.id}`}>
+          <header class="topic-exhibit-label">
+            <p class="topic-exhibit-kicker">主题探索</p>
+            <h2 id={`topic-label-${entry.id}`}><a href={`/knowledge/${entry.id}/`}>{entry.data.title}</a></h2>
+            <p class="topic-exhibit-summary">{entry.data.summary}</p>
+            <div class="topic-exhibit-stats">
+              <span>{total} 项内容</span>
+              {counts.length > 0 && <span>{counts.map(({ type, count }) => `${type} ${count}`).join(' · ')}</span>}
+            </div>
+            <a class="topic-exhibit-enter" href={`/knowledge/${entry.id}/`} aria-label={`进入专题：${entry.data.title}`}>进入专题 <span aria-hidden="true">↗</span></a>
+          </header>
+
+          <div class="topic-exhibit-content">
+            {preview.length ? (
+              <>
+                <p class="topic-exhibit-content-label">从这里开始</p>
+                <ol class="topic-exhibit-items">
+                  {preview.map((item, itemIndex) => (
+                    <li>
+                      <p class="topic-exhibit-item-type"><span aria-hidden="true">{String(itemIndex + 1).padStart(2, '0')} / </span>{item.type}</p>
+                      <h3><a href={item.href}>{item.title}<span aria-hidden="true">↗</span></a></h3>
+                      <p class="topic-exhibit-item-summary">{item.summary}</p>
+                    </li>
+                  ))}
+                </ol>
+                {total > preview.length && <a class="topic-exhibit-more" href={`/knowledge/${entry.id}/`}>另有 {total - preview.length} 项内容，查看完整专题 <span aria-hidden="true">→</span></a>}
+              </>
+            ) : (
+              <div class="topic-exhibit-pending"><p>内容正在整理中</p><span>阅读与实践内容将陆续加入。</span></div>
+            )}
+          </div>
+        </article>
+      ))}
+    </section>
+  ) : (
+    <section class="topic-exhibition-empty" aria-label="暂无专题">
+      <h2>专题正在准备中</h2>
+      <p>将相关的思考与实践整理好后，会在这里与你见面。</p>
+      <a href="/">返回首页 <span aria-hidden="true">↗</span></a>
+    </section>
+  )}
+</div>

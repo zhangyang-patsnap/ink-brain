@@ -1,0 +1,24 @@
+---
+import type { OwnedProject } from '../data/projects';
+import ProjectShowcase from './ProjectShowcase.astro';
+import ProjectDetail from './ProjectDetail.astro';
+import '../styles/project-workspace.css';
+interface Props { projects: OwnedProject[] }
+const { projects } = Astro.props;
+---
+<div class="project-workspace">
+  <section class="project-browser" aria-label="项目展台">
+    <details class="project-picker" open>
+      <summary>项目展台 <span data-current-project>{projects[0]?.name ?? '暂无项目'}</span></summary>
+      <ProjectShowcase projects={projects} inline />
+    </details>
+  </section>
+  {projects.length ? <section class="project-workspace-detail" id="project-display" aria-label="当前项目详情">
+    <ProjectDetail project={projects[0]} embedded />
+  </section> : <section class="project-workspace-empty"><h2>项目还在准备中</h2><p>新的项目作品会在这里展示。</p><a href="/writing/">先看看技术文章 →</a></section>}
+  {projects.map(project => <template data-project-template={project.slug} data-project-name={project.name}><ProjectDetail project={project} embedded /></template>)}
+  <p class="project-workspace-status" role="status" aria-live="polite"></p>
+</div>
+<script>
+  import '../lib/project-workspace';
+</script>

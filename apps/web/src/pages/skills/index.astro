@@ -1,0 +1,8 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SkillWorkbench from '../../components/SkillWorkbench.astro';
+import { skills } from '../../data/skills';
+---
+<BaseLayout title="Skill 工作台 — InkBrain" description="面向开发、设计、文档和运维的 Skill，注明自研或引用来源。" section="skills">
+  <SkillWorkbench skills={skills} />
+</BaseLayout>

@@ -10,6 +10,8 @@ export interface OwnedProject {
   tagline: string;
   summary: string;
   stack: string[];
+  license?: string;
+  languages?: string[];
   capabilities: string[];
   evidence: string[];
   documentation: string;

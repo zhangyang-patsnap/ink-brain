@@ -3,6 +3,9 @@ const app = $("#app"),
   notice = $("#notice");
 let theme =
   document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+let richHydrating = false;
+let richImageHandler = null;
+let richResizeObserver = null;
 function applyTheme(nextTheme) {
   theme = nextTheme;
   document.documentElement.dataset.theme = theme;
@@ -16,10 +19,20 @@ const names = {
   knowledge: "专题",
   projects: "项目",
   tools: "工具",
+  skills: "Skill",
   tags: "标签",
   assets: "文件库",
   settings: "站点设置",
   help: "使用说明",
+};
+const validPages = new Set(Object.keys(names));
+const pageFromLocation = () => {
+  const candidate = location.hash.slice(1);
+  return validPages.has(candidate) ? candidate : "dashboard";
+};
+const rememberPage = () => {
+  const next = page === "dashboard" ? location.pathname : `#${page}`;
+  history.replaceState(null, "", next);
 };
 const labels = {
   title: "标题",
@@ -48,6 +61,8 @@ const labels = {
   status: "项目状态",
   tagline: "一句话介绍",
   stack: "技术栈",
+  license: "代码协议（选填）",
+  languages: "主要语言（选填）",
   capabilities: "能力",
   evidence: "证据",
   documentation: "文档说明",
@@ -111,7 +126,8 @@ let csrf = "",
   previewObjectUrls = [],
   page = "dashboard",
   editing = null,
-  dirty = false;
+  dirty = false,
+  richEditor = null;
 const escape = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
@@ -143,7 +159,11 @@ async function api(url, method = "GET", body) {
       ? {}
       : { body: body instanceof FormData ? body : JSON.stringify(body) }),
   });
-  const data = await res.json();
+  const raw = await res.text();
+  let data = {};
+  if (raw.trim()) {
+    try { data = JSON.parse(raw); } catch { throw Error(`接口返回格式错误（HTTP ${res.status}）`); }
+  }
   if (!res.ok) throw Error(data.error ?? "请求失败");
   return data;
 }
@@ -174,7 +194,11 @@ function shell() {
 function draw() {
   shell();
   const c = $("#content");
-  if (["articles", "knowledge", "projects", "tools"].includes(page)) {
+  if (page === 'skills' && !Array.isArray(snapshot.state.skills)) {
+    c.innerHTML = '<section class="card"><h2>请重启后台服务</h2><p>Skill 页面已更新，当前 Node 进程仍在使用旧版接口。请按原启动方式重启后台，再刷新本页；已有内容不会删除。</p></section>';
+    return;
+  }
+  if (["articles", "knowledge", "projects", "tools", "skills"].includes(page)) {
     if (editing) return editor();
     c.innerHTML = `<div class="toolbar"><button class="primary" data-action="new">新建${names[page]}</button><span class="help">修改可保存草稿或直接发布；删除会同步到站点。</span></div><div class="list">${snapshot.state[page].map((r) => `<div class="row"><button class="row-edit" data-edit="${r.id}"><span><strong>${escape(r.data.title ?? r.data.name)}</strong>${page === "articles" ? "" : `<small>${escape(r.id)}</small>`}</span>${page === "articles" ? "" : `<span class="badge">${r.included ? "公开内容" : "仅草稿"}</span>`}</button><button class="row-delete" data-delete="${r.id}" aria-label="删除${escape(r.data.title ?? r.data.name)}">删除</button></div>`).join("") || '<p class="empty">还没有内容，从第一篇开始。</p>'}</div>`;
   } else if (page === "dashboard") {
@@ -194,6 +218,7 @@ function draw() {
   else if (page === "settings") {
     c.innerHTML = `<form id="settings-form" class="card"><div class="fields">${fields(snapshot.state.settings)}</div><div class="editor-actions"><span class="help">可以先保存草稿，也可以直接发布。</span><div class="editor-action-buttons"><button type="submit" data-save-mode="draft">保存草稿</button><button type="submit" class="primary" data-save-mode="publish">保存并发布</button></div></div></form>`;
   }
+  if (page === 'help') c.insertAdjacentHTML('beforeend', '<section class="card"><h2>Skill 上传与发布</h2><ol><li>打开 Skill 栏目，新增并填写名称、分类、简介与详细说明。</li><li>来源选择“自研”或“引用”；引用必须填写 HTTPS 原始链接，不代表验证状态。</li><li>手动上传 Markdown（最多 2 MB）、ZIP 或 .skill（最多 256 MB）。文件仅存储与下载，不解压、不执行。</li><li>可先保存草稿；上传文件后点击“保存并发布”，游客即可查看详情并下载。</li></ol><p>不会扫描或同步本地 Skill 目录。引用内容请确认分享权限并保留作者、原始链接与许可证。新增功能需重启后台服务后生效。</p></section>');
 }
 function field(value, key, prefix) {
   if (
@@ -229,6 +254,22 @@ function field(value, key, prefix) {
     return `${head}<textarea id="${id}" name="${name}">${escape(value)}</textarea></label>`;
   return `${head}<input id="${id}" name="${name}" value="${escape(value)}" type="${typeof value === "number" ? "number" : ["publishedAt", "releasedAt"].includes(key) ? "date" : "text"}"></label>`;
 }
+function skillFields(data) {
+  const categories = [['development','开发与调试'],['documents','文档与报告'],['design','设计与前端'],['data','数据与分析'],['operations','运维与观测'],['other','其他能力']];
+  return `<div class="fields">
+    ${field(data.name, 'name', '')}
+    <input id="record-id" type="hidden" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" required>
+    <div class="skill-compact-row"><label class="field">能力分类<select name="category">${categories.map(([value,label])=>`<option value="${value}" ${data.category===value?'selected':''}>${label}</option>`).join('')}</select></label>${field(data.monogram,'monogram','')}${field(data.order,'order','')}</div>
+    <label class="field">来源<select name="origin" id="skill-origin"><option value="original" ${data.origin==='original'?'selected':''}>自研</option><option value="reference" ${data.origin==='reference'?'selected':''}>引用</option></select></label>
+    <label class="field wide">原始链接${data.origin==='reference'?'（必填）':'（选填）'}<input name="sourceUrl" type="url" value="${escape(data.sourceUrl)}" placeholder="https://" ${data.origin==='reference'?'required':''}><small>引用外部 Skill 时必须注明原始来源，游客页会显示此链接。</small></label>
+    ${field(data.summary,'summary','')}
+    <label class="field check"><input type="checkbox" name="featured" ${data.featured?'checked':''}>放入推荐能力</label>
+    <label class="field wide">Skill 文件<input type="file" id="skill-package-upload" accept=".md,.markdown,.zip,.skill"><small>手动上传 SKILL.md、ZIP 或 .skill。Markdown 最多 2 MB，压缩包最多 256 MB；仅保存与下载，不解包、不执行。</small></label>
+    <div class="wide help">${data.fileUrl ? `已上传：${escape(data.fileName)} · ${(data.fileSize/1024).toFixed(1)} KB<br>SHA-256：<code>${escape(data.checksum)}</code>` : '尚未上传文件，可以先保存草稿；发布前必须上传。'}</div>
+    <label class="field wide">详细说明 · Markdown<textarea id="f-skill-documentation" name="documentation" rows="16">${escape(data.documentation)}</textarea><small>填写适用场景、使用方法、输入输出、依赖及注意事项。上传 MD 不会执行其中的指令。</small></label>
+    <div class="wide"><button type="button" data-action="skill-preview">预览说明</button><div id="skill-preview" class="body-preview" hidden></div></div>
+  </div>`;
+}
 function fields(data, prefix = "") {
   return Object.entries(data)
     .filter(([k]) => !["slug", "draft"].includes(k))
@@ -239,11 +280,13 @@ function articleFields(data) {
   return `<label class="field wide" for="f-title"><span>标题</span><input id="f-title" name="title" value="${escape(data.title)}" required maxlength="240"></label><label class="field wide" for="f-summary"><span>摘要</span><textarea id="f-summary" name="summary" required maxlength="240">${escape(data.summary)}</textarea><small>用于文章列表和搜索结果。</small></label><div class="article-meta-fields"><label class="field" for="f-publishedAt"><span>发布日期</span><input id="f-publishedAt" name="publishedAt" value="${escape(data.publishedAt)}" type="date" required></label><label class="field" for="f-readingMinutes"><span>阅读时间</span><div class="input-suffix"><input id="f-readingMinutes" name="readingMinutes" value="${escape(data.readingMinutes)}" type="number" min="1" max="600" required><span>分钟</span></div></label></div><fieldset class="tag-picker"><legend>标签</legend><div class="tag-options">${snapshot.catalogs.tags.map(([id, title]) => `<label><input type="checkbox" name="tags" value="${id}" data-type="multi-check" ${data.tags.includes(id) ? "checked" : ""}><span>${escape(title)}</span></label>`).join("")}</div></fieldset>`;
 }
 function projectFields(data) {
+  data.license ??= "";
+  data.languages ??= [];
   data.repositoryUrls ??= data.repositoryUrl ? [data.repositoryUrl] : [];
   data.documentationUrls ??= data.documentationUrl
     ? [data.documentationUrl]
     : [];
-  return `<section class="project-form-section"><div class="project-section-heading"><span>01</span><div><h2>基本信息</h2><p>定义项目是什么，以及它目前所处的阶段。</p></div></div><div class="project-form-grid project-basics">${field(data.name, "name", "")}<label class="field" for="record-id"><span>内容标识</span><input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"}></label>${field(data.type, "type", "")}${field(data.status, "status", "")}${field(data.tagline, "tagline", "")}${field(data.summary, "summary", "")}</div></section><section class="project-form-section"><div class="project-section-heading"><span>02</span><div><h2>项目内容</h2><p>介绍技术栈、核心能力，并编写项目文档。</p></div></div><div class="project-form-grid project-content-fields">${field(data.stack, "stack", "")}${field(data.capabilities, "capabilities", "")}${field(data.documentation, "documentation", "")}</div></section><section class="project-form-section"><div class="project-section-heading"><span>03</span><div><h2>项目链接</h2><p>填写部署后的访问地址，也可添加多个源码仓库和文档入口。</p></div></div><label class="field project-visit-field" for="f-projectUrl"><span>项目访问地址</span><input id="f-projectUrl" name="projectUrl" type="url" value="${escape(data.projectUrl ?? "")}" placeholder="https://your-project.com" aria-describedby="project-url-help"><small id="project-url-help">选填，部署后填写；访客可通过“访问项目”直接打开。</small></label><div class="project-form-grid project-link-fields">${projectUrlList(data, "repositoryUrls", "源码仓库地址")}${projectUrlList(data, "documentationUrls", "文档地址")}</div></section>`;
+  return `<section class="project-form-section"><div class="project-section-heading"><span>01</span><div><h2>基本信息</h2><p>定义项目是什么，以及它目前所处的阶段。</p></div></div><div class="project-form-grid project-basics">${field(data.name, "name", "")}<label class="field" for="record-id"><span>内容标识</span><input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"}></label>${field(data.type, "type", "")}${field(data.status, "status", "")}${field(data.tagline, "tagline", "")}${field(data.summary, "summary", "")}</div></section><section class="project-form-section"><div class="project-section-heading"><span>02</span><div><h2>项目内容</h2><p>介绍技术栈、核心能力，并编写项目文档。</p></div></div><div class="project-form-grid project-content-fields">${field(data.stack, "stack", "")}${field(data.license, "license", "")}${field(data.languages, "languages", "")}${field(data.capabilities, "capabilities", "")}${field(data.documentation, "documentation", "")}</div></section><section class="project-form-section"><div class="project-section-heading"><span>03</span><div><h2>项目链接</h2><p>填写部署后的访问地址，也可添加多个源码仓库和文档入口。</p></div></div><label class="field project-visit-field" for="f-projectUrl"><span>项目访问地址</span><input id="f-projectUrl" name="projectUrl" type="url" value="${escape(data.projectUrl ?? "")}" placeholder="https://your-project.com" aria-describedby="project-url-help"><small id="project-url-help">选填，部署后填写；访客可通过“访问项目”直接打开。</small></label><div class="project-form-grid project-link-fields">${projectUrlList(data, "repositoryUrls", "源码仓库地址")}${projectUrlList(data, "documentationUrls", "文档地址")}</div></section>`;
 }
 function knowledgeFields(data) {
   data.items ??= ["articles", "projects", "tools"].flatMap((kind) =>
@@ -363,6 +406,7 @@ function collect(form, base) {
 }
 function capture() {
   if (!editing) return;
+  syncRichBody();
   editing.data = collect(
     $("#editor"),
     page === "articles" ? articleData(editing.data) : editing.data,
@@ -381,14 +425,25 @@ function capture() {
   }
 }
 function editor() {
+  if (richEditor) {
+    richEditor.destroy();
+    richEditor = null;
+  }
+  if (richImageHandler) {
+    $("#body-editor")?.removeEventListener("dblclick", richImageHandler);
+    richImageHandler = null;
+  }
+  richResizeObserver?.disconnect();
+  richResizeObserver = null;
   const markdown = page === "articles";
   const isArticle = page === "articles";
   const isProject = page === "projects";
   const isTool = page === "tools";
+  const isSkill = page === "skills";
   const isKnowledge = page === "knowledge";
   const editorData = isArticle ? articleData(editing.data) : editing.data;
   const statusFields =
-    isArticle || isProject || isTool || isKnowledge
+    isArticle || isProject || isTool || isKnowledge || isSkill
       ? ""
       : `<div class="editor-status"><label class="check"><input id="included" type="checkbox" ${editing.included ? "checked" : ""}> 发布到访客站点</label></div>`;
   const editorFields = isArticle
@@ -397,16 +452,19 @@ function editor() {
       ? `<div class="project-form">${projectFields(editorData)}</div>`
       : isTool
         ? `<div class="tool-form">${toolFields(editorData)}</div>`
+        : isSkill
+          ? skillFields(editorData)
         : isKnowledge
           ? `<div class="knowledge-form">${knowledgeFields(editorData)}</div>`
           : `<div class="fields"><label class="field">内容标识<input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"} aria-describedby="id-help"><small id="id-help">英文小写与短横线，发布后用于页面地址。</small></label>${fields(editorData)}</div>`;
   $("#content").innerHTML =
-    `<form id="editor" class="${isArticle ? "article-editor" : isProject ? "project-editor" : isTool ? "tool-editor" : isKnowledge ? "knowledge-editor" : ""}"><div class="card ${isArticle ? "article-meta-card" : "editor-meta-card"} ${isProject ? "project-editor-card" : ""}">${statusFields}${editorFields}</div>${
+    `<form id="editor" class="${isArticle ? "article-editor" : isProject ? "project-editor" : isTool ? "tool-editor" : isKnowledge ? "knowledge-editor" : isSkill ? "skill-editor" : ""}"><div class="card ${isArticle ? "article-meta-card" : "editor-meta-card"} ${isProject ? "project-editor-card" : ""}">${statusFields}${editorFields}</div>${
       markdown
-        ? `<div class="card"><label class="field">正文 · Markdown<textarea id="body" class="markdown">${escape(editing.body)}</textarea></label><div class="source-import"><label class="field"><span>上传原文件作为正文</span><small>选择 MD、Markdown、HTML、JPG、JPEG、PNG 或 WebP。文件会替换当前正文，并立即在下方展示。</small><input type="file" id="editor-upload" accept=".html,.htm,.md,.markdown,.png,.jpg,.jpeg,.webp"></label></div><div class="toolbar markdown-toolbar"><button type="button" data-action="markdown">刷新正文预览</button><span class="help">手动修改上方正文后，可刷新查看效果。</span></div><div id="markdown-preview" class="body-preview"><p class="empty">上传原文件或点击“刷新正文预览”后，在这里查看最终效果。</p></div></div>`
+        ? `<div class="card article-writing-card"><div class="editor-mode-tabs" role="tablist" aria-label="编辑模式"><button type="button" class="active" data-editor-mode="wysiwyg" role="tab" aria-selected="true">正文</button><button type="button" data-editor-mode="markdown" role="tab" aria-selected="false">Markdown</button><button type="button" data-editor-mode="preview" role="tab" aria-selected="false">预览</button></div><div id="body-editor" class="toast-editor-host" aria-label="正文编辑区"></div><textarea id="body" class="markdown-source" aria-hidden="true">${escape(editing.body)}</textarea><small>支持标题、加粗、斜体、列表、引用、代码块、表格和图片。可直接粘贴图片。</small><div id="markdown-preview" class="body-preview" hidden></div></div><section class="card source-import"><h3>导入原文件</h3><p class="help">上传后会替换当前正文，支持 MD、Markdown、HTML、JPG、JPEG、PNG 和 WebP。</p><label class="field"><span>选择文件</span><input type="file" id="editor-upload" accept=".html,.htm,.md,.markdown,.png,.jpg,.jpeg,.webp"></label></section>`
         : ""
     }<div class="editor-actions"><button type="button" data-action="back">返回列表</button><div class="editor-action-buttons"><button type="submit" data-save-mode="draft">保存草稿</button><button type="submit" class="primary" data-save-mode="publish">保存并发布</button></div></div></form>`;
   if (isKnowledge) topicCandidates();
+  if (isArticle) void initRichEditor(editing.body);
 }
 function newRecord() {
   const date = new Date().toISOString().slice(0, 10);
@@ -415,6 +473,7 @@ function newRecord() {
     summary: "",
   };
   const data = {
+    skills: { slug:'', name:'', summary:'', category:'development', origin:'original', sourceUrl:'', monogram:'SK', version:'', documentation:'', featured:false, order:0, demo:false, fileUrl:'', fileName:'', fileSize:0, checksum:'' },
     articles: {
       ...common,
       publishedAt: date,
@@ -466,6 +525,8 @@ function newRecord() {
   return {
     id: ["articles", "knowledge"].includes(page)
       ? `${page === "knowledge" ? "topic" : "article"}-${date.replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8)}`
+      : page === "skills"
+        ? `skill-${crypto.randomUUID().slice(0, 12)}`
       : "",
     data,
     body: "",
@@ -507,6 +568,7 @@ async function renderBodyPreview(
   for (const url of previewObjectUrls) URL.revokeObjectURL(url);
   previewObjectUrls = [];
   preview.innerHTML = result.html || '<p class="empty">正文为空。</p>';
+  if (window.renderDiagrams) await window.renderDiagrams(preview);
   await Promise.all(
     [...preview.querySelectorAll('img[src^="/admin/api/assets/"]')].map(
       async (image) => {
@@ -523,6 +585,132 @@ async function renderBodyPreview(
   );
 }
 
+function syncRichBody() {
+  const source = $("#body");
+  if (richEditor && source && !richHydrating)
+    source.value = richEditor
+      .getMarkdown()
+      .replaceAll("/admin/api/assets/", "/media/");
+}
+
+function editorMarkdown(source) {
+  return source.replaceAll("/media/", "/admin/api/assets/");
+}
+
+async function initRichEditor(source = "") {
+  const host = $("#body-editor");
+  if (!host || !window.toastui?.Editor) return;
+  richHydrating = true;
+  try {
+    window.toastui.Editor.setLanguage("zh-CN", {
+      Headings: "标题",
+      Heading: "H",
+      Paragraph: "正文",
+      "Text color": "文字颜色",
+      "Background color": "背景颜色",
+    });
+    richEditor = new window.toastui.Editor({
+      el: host,
+      height: "460px",
+      initialEditType: "wysiwyg",
+      previewStyle: "vertical",
+      hideModeSwitch: true,
+      initialValue: editorMarkdown(source),
+      usageStatistics: false,
+      plugins: [],
+      toolbarItems: [
+        ["heading", "bold", "italic", "strike"],
+        ["hr", "quote", "ul", "ol"],
+        ["table", "image", "code", "codeblock"],
+      ],
+      hooks: {
+        addImageBlobHook: async (blob, callback) => {
+          try {
+            const asset = await uploadAsset(blob);
+            callback(`/admin/api/assets/${encodeURIComponent(asset.filename)}`, blob.name || "图片");
+            dirty = true;
+          } catch (error) {
+            notify(error.message, true);
+          }
+        },
+      },
+    });
+    richEditor.on("change", () => {
+      syncRichBody();
+      dirty = true;
+    });
+    richImageHandler = (event) => {
+      const image = event.target.closest?.("img");
+      if (!image || !host.contains(image)) return;
+      const currentWidth = image.width || image.naturalWidth || "";
+      const currentHeight = image.height || image.naturalHeight || "";
+      const width = prompt("图片宽度（像素，留空使用原始宽度）", currentWidth);
+      if (width === null) return;
+      const height = prompt("图片高度（像素，留空自动按比例）", currentHeight);
+      if (height === null) return;
+      const markdown = richEditor
+        .getMarkdown()
+        .replaceAll("/admin/api/assets/", "/media/");
+      const src = image.getAttribute("src")?.replace("/admin/api/assets/", "/media/");
+      if (!src) return;
+      const escapedSrc = src.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const imagePattern = new RegExp(`!\\[([^\\]]*)\\]\\(${escapedSrc}\\)`);
+      const attrs = [`src="${src}"`, `alt="${escape(image.alt || "图片")}"`];
+      const styles = [];
+      if (/^\\d+$/.test(width.trim())) {
+        attrs.push(`width="${width.trim()}"`);
+        styles.push(`width:${width.trim()}px`);
+      }
+      if (/^\\d+$/.test(height.trim())) {
+        attrs.push(`height="${height.trim()}"`);
+        styles.push(`height:${height.trim()}px`);
+      }
+      if (styles.length) attrs.push(`style="${styles.join(";")}"`);
+      const replacement = `<img ${attrs.join(" ")}>`;
+      const nextMarkdown = imagePattern.test(markdown)
+        ? markdown.replace(imagePattern, replacement)
+        : `${markdown}\n\n${replacement}`;
+      richEditor.setMarkdown(editorMarkdown(nextMarkdown));
+      dirty = true;
+    };
+    host.addEventListener("dblclick", richImageHandler);
+    richResizeObserver = new ResizeObserver((entries) => {
+      for (const { target } of entries) {
+        if (target.tagName === "IMG" && target.clientWidth)
+          target.setAttribute("width", String(Math.round(target.clientWidth)));
+      }
+      syncRichBody();
+      dirty = true;
+    });
+    host.querySelectorAll("img").forEach((image) => richResizeObserver.observe(image));
+    host.addEventListener("load", (event) => {
+      if (event.target?.tagName === "IMG") richResizeObserver.observe(event.target);
+    }, true);
+  } finally {
+    richHydrating = false;
+  }
+}
+
+async function setEditorMode(mode) {
+  if (!richEditor) return;
+  syncRichBody();
+  const host = $("#body-editor");
+  const preview = $("#markdown-preview");
+  for (const button of document.querySelectorAll("[data-editor-mode]")) {
+    const active = button.dataset.editorMode === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  }
+  if (mode === "preview") {
+    host.style.display = "none";
+    await renderBodyPreview();
+  } else {
+    host.style.display = "";
+    preview.hidden = true;
+    richEditor.changeMode(mode);
+  }
+}
+
 async function replaceBodyWithAsset(asset) {
   const body = $("#body");
   let source;
@@ -533,6 +721,7 @@ async function replaceBodyWithAsset(asset) {
     source = (await api(`assets/${asset.filename}/source`)).source;
   }
   body.value = source;
+  if (richEditor) richEditor.setMarkdown(editorMarkdown(source));
   dirty = true;
   await renderBodyPreview();
   $("#markdown-preview").scrollIntoView({ block: "start" });
@@ -563,10 +752,31 @@ app.addEventListener("input", (e) => {
     topicCandidates();
     return;
   }
+  if (e.target.id === "body-editor") syncRichBody();
   if (e.target.closest("#editor,#settings-form,#tags-form")) dirty = true;
 });
 app.addEventListener("change", async (e) => {
   try {
+    if (e.target.id === 'skill-origin') { capture(); editor(); $('#skill-origin')?.focus(); return; }
+    if (e.target.id === 'skill-package-upload' && e.target.files?.[0]) {
+      const file = e.target.files[0];
+      if (!/\.(md|markdown|zip|skill)$/i.test(file.name)) throw Error('请选择 Markdown、ZIP 或 .skill 文件');
+      const markdown = /\.(md|markdown)$/i.test(file.name);
+      if (file.size > (markdown ? 2 : 256) * 1024 * 1024) throw Error(markdown ? 'Markdown 不能超过 2 MB' : 'Skill 文件不能超过 256 MB');
+      capture();
+      const controls = [...app.querySelectorAll('button,input,select,textarea')];
+      const wasDisabled = controls.map(control => control.disabled);
+      controls.forEach(control => { control.disabled = true; });
+      notify('正在上传 Skill 文件…');
+      try {
+        const asset = await uploadAsset(file);
+        Object.assign(editing.data, { fileUrl:asset.url, fileName:asset.name, fileSize:asset.size, checksum:asset.sha256 });
+        dirty = true;
+        editor();
+        notify('Skill 文件已上传。请填写说明，保存并发布后即可下载。');
+      } finally { controls.forEach((control,index)=>{control.disabled=wasDisabled[index];}); }
+      return;
+    }
     if (e.target.id === "topic-kind") {
       topicCandidates();
       return;
@@ -657,6 +867,7 @@ app.addEventListener("click", async (e) => {
       dirty = false;
       editing = null;
       page = b.dataset.page;
+      rememberPage();
       await refresh();
       draw();
       window.scrollTo(0, 0);
@@ -749,7 +960,7 @@ app.addEventListener("click", async (e) => {
       editor();
       window.scrollTo(0, 0);
       $(
-        ["projects", "tools"].includes(page)
+        ["projects", "tools", "skills"].includes(page)
           ? "#f-name"
           : "#record-id, #f-title",
       )?.focus();
@@ -764,8 +975,12 @@ app.addEventListener("click", async (e) => {
       await api("logout", "POST", {});
       dirty = false;
       location.reload();
+    } else if (b.dataset.action === 'skill-preview') {
+      await renderBodyPreview('#f-skill-documentation', '#skill-preview');
     } else if (b.dataset.action === "project-markdown") {
       await renderBodyPreview("#f-documentation", "#project-markdown-preview");
+    } else if (b.dataset.editorMode) {
+      await setEditorMode(b.dataset.editorMode);
     } else if (b.dataset.action === "markdown") {
       await renderBodyPreview();
     }
@@ -812,7 +1027,7 @@ app.addEventListener("submit", async (e) => {
                 ? "浏览器"
                 : "见系统要求";
       }
-      if (["projects", "tools", "knowledge"].includes(page) && publish)
+      if (["projects", "tools", "knowledge", "skills"].includes(page) && publish)
         record.included = true;
       delete record.isNew;
       const data = await api(`records/${page}/${record.id}`, "PUT", {
@@ -884,6 +1099,7 @@ async function init() {
     const session = await api("session");
     csrf = session.csrf ?? "";
     if (session.authenticated) {
+      page = pageFromLocation();
       await refresh();
       draw();
       return;

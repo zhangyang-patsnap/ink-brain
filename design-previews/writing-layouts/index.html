@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN" data-layout="b" data-style="paper" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>InkBrain · 文章首页布局对比</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./editorial-variants.css">
+</head>
+<body>
+  <section class="review" aria-label="样稿控制面板">
+    <div class="review-main">
+      <div class="review-label">文章首页 <span>设计样稿</span></div>
+      <div class="options" aria-label="布局方案">
+        <button data-layout="b" aria-pressed="true">B · 编辑选读</button>
+        <button data-layout="d" aria-pressed="false">D · 杂志封面</button>
+        <button data-layout="e" aria-pressed="false">E · 主题展厅</button>
+      </div>
+      <div class="appearance">
+        <button id="style-toggle" title="切换风格">纸上 ⇄</button>
+        <button id="theme-toggle" aria-label="切换为深色模式" title="切换为深色模式"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor"/></svg></button>
+      </div>
+    </div>
+    <p id="design-note">保留方案：一篇选读 + 双列文章，平衡重点推荐与日常浏览。</p>
+  </section>
+  <header class="site-header">
+    <div class="site-inner">
+      <a class="brand" href="http://127.0.0.1:4332/">INKBRAIN<span>写作 · 专题 · 实验 · 作品</span></a>
+      <nav aria-label="网站导航"><a href="http://127.0.0.1:4332/">首页</a><a href="./" aria-current="page">文章</a><a href="http://127.0.0.1:4332/knowledge/">专题</a><a href="http://127.0.0.1:4332/projects/">项目</a><a href="http://127.0.0.1:4332/tools/">工具</a></nav>
+    </div>
+  </header>
+  <main class="page">
+    <header class="page-intro">
+      <div><p class="eyebrow">技术写作</p><h1>在实践中，理解技术。</h1><p class="intro-copy">关于 AI 应用、后端工程与运行时。记录设计、实现与复盘。</p></div>
+      <div class="intro-side"><span>设计 / 实现 / 复盘</span><p>从一个问题开始，<br>把思路写到具体的实现里。</p></div>
+    </header>
+    <div class="content-layout">
+      <aside class="filters" aria-label="文章分类"><h2>按方向阅读</h2><div id="categories"></div><p class="filter-note">围绕具体问题阅读，<br>也可以按时间慢慢翻阅。</p></aside>
+      <section class="listing" aria-label="文章列表">
+        <div class="list-tools"><p id="count" role="status" aria-live="polite"></p><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" type="search" placeholder="搜索标题、摘要" aria-label="搜索文章标题或摘要"></label></div>
+        <div id="spotlight"></div><div id="articles"></div>
+        <div id="empty" hidden><h2>没有找到相关文章</h2><p>试试其他关键词，或清除筛选。</p><button id="reset">清除筛选</button></div>
+        <p class="list-end">以上为全部样稿文章</p>
+      </section>
+    </div>
+  </main>
+  <footer><span>INKBRAIN · 文章首页设计对比</span><span>使用现有文章与仓库示例内容，不代表正式发布列表。</span></footer>
+  <script src="./preview.js"></script>
+</body>
+</html>

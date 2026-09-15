@@ -1,52 +1,9 @@
 ---
-import ArrowLink from '../../components/ArrowLink.astro';
-import PageIntro from '../../components/PageIntro.astro';
-import { softwareTools, toolKindLabels } from '../../data/tools';
+import ToolsHome from '../../components/ToolsHome.astro';
+import { softwareTools } from '../../data/tools';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-
-const downloadableTools = softwareTools.filter((tool) => tool.kind !== 'web-tool');
-const webTools = softwareTools.filter((tool) => tool.kind === 'web-tool');
-const featured = downloadableTools[0];
 ---
 
-<BaseLayout title="工具市场 — InkBrain" description="获取 InkBrain 的 macOS 应用、CLI、插件与在线小工具。" section="tools">
-  <PageIntro
-    title="工具市场"
-    description="为日常开发省一点时间。发现适合你的 macOS 应用、命令行工具与编辑器插件。"
-    index="TOOLS / 05"
-    note={softwareTools.length === 0 ? '工具正在整理中。' : softwareTools.every(tool => tool.availability === 'demo') ? '当前软件均为展示示例，尚未开放下载。' : '下载前请查看系统要求、版本说明与校验信息。'}
-  />
-
-  {featured && <section class="content-shell market-feature" aria-labelledby="featured-tool-title">
-    <div class="tool-mark" aria-hidden="true">{featured.monogram}</div>
-    <div class="market-feature-copy">
-      <div class="catalog-eyebrow"><span>FEATURED / {toolKindLabels[featured.kind]}</span><span>{featured.availability.toUpperCase()}</span></div>
-      <h2 id="featured-tool-title">{featured.name}</h2>
-      <p>{featured.summary}</p>
-      <div class="release-inline"><span>{featured.platform}</span><span>v{featured.release.version}</span><span>{featured.release.packageFormat}</span></div>
-    </div>
-    <div class="market-feature-action">
-      <span>{featured.availability === 'available' ? '已发布' : '尚未开放下载'}</span>
-      <ArrowLink href={`/tools/${featured.slug}/`} label="查看发布详情" />
-    </div>
-  </section>}
-
-  <section class="content-shell market-section" aria-labelledby="downloadable-title">
-    <header class="market-section-header"><div><span class="section-kicker">MORE TOOLS</span><h2 id="downloadable-title">更多工具</h2></div><p>找到适合终端与编辑器的工作助手。</p></header>
-    <div class="software-register">
-      {downloadableTools.filter((tool) => tool.slug !== featured?.slug).map((tool) => (
-        <article>
-          <div class="tool-mark small" aria-hidden="true">{tool.monogram}</div>
-          <div><span class="software-kind">{toolKindLabels[tool.kind]} · {tool.platform}</span><h3><a href={`/tools/${tool.slug}/`}>{tool.name}</a></h3><p>{tool.summary}</p></div>
-          <dl><div><dt>VERSION</dt><dd>{tool.release.version}</dd></div><div><dt>STATUS</dt><dd>{tool.availability.toUpperCase()}</dd></div></dl>
-          <ArrowLink href={`/tools/${tool.slug}/`} label="详情" />
-        </article>
-      ))}
-    </div>
-  </section>
-
-  <section class="content-shell market-section web-tools-section" aria-labelledby="web-tools-title">
-    <header class="market-section-header"><div><span class="section-kicker">BROWSER UTILITIES</span><h2 id="web-tools-title">在线工具</h2></div><p>无需安装的浏览器工具。目前提供界面预览。</p></header>
-    <div class="web-tool-register">{webTools.map((tool) => <a href={`/tools/${tool.slug}/`}><span>{tool.name}</span><small>{tool.summary}</small><strong>UI DEMO ↗</strong></a>)}</div>
-  </section>
+<BaseLayout title="工具展柜 — InkBrain" description="为日常开发省一点时间。发现桌面应用、命令行工具与编辑器插件。" section="tools" bodyClass="tools-index-page">
+  <ToolsHome tools={softwareTools} />
 </BaseLayout>

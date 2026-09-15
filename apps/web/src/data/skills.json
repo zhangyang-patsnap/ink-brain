@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "fixing-accessibility-demo",
+    "name": "Fixing Accessibility",
+    "summary": "检查界面中的键盘操作、控件名称、焦点和表单提示，帮助整理可访问性改进项。",
+    "category": "design",
+    "origin": "reference",
+    "sourceUrl": "https://github.com/ibelick/ui-skills/blob/main/skills/fixing-accessibility/SKILL.md",
+    "monogram": "A",
+    "version": "",
+    "documentation": "## 示例说明\n\n这是引用自 ibelick/ui-skills 的本地单文件快照，仅用于演示 Skill 栏目的来源、说明和下载流程，不是 InkBrain 自研内容，不会自动同步本地目录。\n\n## 适用场景\n\n- 检查按钮、链接与表单的可访问名称。\n- 检查键盘导航和焦点可见性。\n- 整理界面可访问性问题及修复建议。\n\n## 使用方法\n\n下载后先阅读文件内容，再按你使用的 Agent 的 Skill 安装方式导入。本站不自动安装或执行 Skill，也不保证适配所有 Agent。\n\n## 来源与授权\n\n作者：Julien Thibeaut / ibelick。项目采用 MIT 许可，下载文件保留来源说明与许可文本。请访问页面上的原始链接了解上游最新内容。",
+    "featured": true,
+    "order": 0,
+    "demo": true,
+    "fileUrl": "/skill-examples/fixing-accessibility.md",
+    "fileName": "fixing-accessibility.md",
+    "fileSize": 6043,
+    "checksum": "8136fcb6177b1c2aac1410c2a96c92ebd648f2464bc6242a1589fb0e56a6684a"
+  }
+]

@@ -1,0 +1,68 @@
+---
+import type { SoftwareTool } from '../data/tools';
+import { showcaseTools, toolCategories, toolSearchText } from '../lib/tool-search.mjs';
+import '../styles/tools-home.css';
+
+interface Props { tools: SoftwareTool[] }
+const tools: SoftwareTool[] = showcaseTools(Astro.props.tools);
+const statuses = { demo: 'DEMO', available: '已发布', retired: '已下架' };
+const allDemo = tools.length > 0 && tools.every(tool => tool.availability === 'demo');
+---
+
+<div class="tools-home" data-tools-home>
+  <header class="tools-intro">
+    <p class="tools-eyebrow">TOOLS / COLLECTION</p>
+    <h1>好工具，让工作更顺手。</h1>
+    <p class="tools-intro-description">为日常开发省一点时间。</p>
+  </header>
+
+  {tools.length > 0 && <div class="tools-controls" data-tools-controls hidden>
+    <div class="tools-categories" role="group" aria-label="工具分类">
+      {toolCategories.map(category => <button type="button" data-tool-category={category.value} aria-pressed={category.value === 'all'} aria-controls="tools-catalog">{category.label}</button>)}
+    </div>
+    <div class="tools-search" role="search" aria-label="搜索工具">
+      <label class="tools-search-field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
+        <span class="tools-sr-only">搜索工具名称、简介、平台或分类</span>
+        <input type="search" placeholder="搜索工具" data-tools-query autocomplete="off" aria-controls="tools-catalog" />
+      </label>
+      <button type="button" class="tools-clear" data-tools-clear hidden>清除</button>
+    </div>
+  </div>}
+
+  <p class="tools-sr-only" role="status" aria-live="polite" aria-atomic="true" data-tools-status></p>
+  <section aria-label="工具展柜">
+    <ul class="tools-catalog" id="tools-catalog">
+      {tools.map((tool, index) => <li class:list={['tools-card', { 'is-featured': index === 0 }]} data-tool-card data-kind={tool.kind} data-search={toolSearchText(tool)}>
+        <div class="tools-monogram" aria-hidden="true">{tool.monogram}</div>
+        <div class="tools-card-copy">
+          <p class="tools-card-category tools-feature-category"><span>{toolCategories.find(category => category.value === tool.kind)?.label}</span><span aria-hidden="true">·</span><span>{statuses[tool.availability]}</span></p>
+          <h2><a href={`/tools/${tool.slug}/`}>{tool.name}</a></h2>
+          <p class="tools-summary">{tool.summary}</p>
+        </div>
+        <div class="tools-card-footer">
+          <div class="tools-card-facts">
+            <p class="tools-card-category tools-compact-category"><span>{toolCategories.find(category => category.value === tool.kind)?.label}</span><span aria-hidden="true">·</span><span>{statuses[tool.availability]}</span></p>
+            <ul class="tools-tags" aria-label="运行平台与版本">
+              <li>{tool.platform}</li>
+              <li class="tools-feature-tag">{/^\d/.test(tool.release.version) ? `v${tool.release.version}` : tool.release.version}</li>
+              <li class="tools-feature-tag">{tool.release.packageFormat}</li>
+            </ul>
+          </div>
+          <a class="tools-details" href={`/tools/${tool.slug}/`} aria-label={`查看 ${tool.name} 详情`}>查看详情</a>
+        </div>
+      </li>)}
+    </ul>
+    <div class="tools-empty" data-tools-empty hidden={tools.length > 0}>
+      <h2>{tools.length ? '没有找到匹配的工具' : '工具正在整理中'}</h2>
+      <p>{tools.length ? '试试其他关键词，或清除分类和搜索条件。' : '新的工具会在这里展示。'}</p>
+      {tools.length > 0 && <button type="button" class="tools-details" data-tools-reset>清除筛选</button>}
+    </div>
+  </section>
+  {tools.length > 0 && <p class="tools-catalog-note">{allDemo ? '当前均为展示示例，尚未开放下载。' : '工具状态以各详情页为准；下载前请查看系统要求、版本说明与校验信息。'}</p>}
+</div>
+
+<script>
+  import { initToolsHome } from '../lib/tools-home';
+  initToolsHome();
+</script>

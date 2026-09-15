@@ -1,0 +1,16 @@
+---
+import type { Skill } from '../data/skills';
+import { skillCategories, skillOrigins } from '../lib/skill-catalog.mjs';
+interface Props { skill: Skill }
+const { skill } = Astro.props;
+---
+<li class="skill-row" data-skill-row data-category={skill.category}>
+  <span class="skill-mark" aria-hidden="true">{skill.monogram}</span>
+  <div class="skill-row-copy">
+    <h3><a href={`/skills/${skill.slug}/`}>{skill.name}</a></h3>
+    <p>{skill.summary}</p>
+    <small>{skillCategories.find(category=>category.value === skill.category)?.label}</small>
+  </div>
+  <div class="skill-provenance"><span class:list={['skill-origin', skill.origin]}>{skillOrigins[skill.origin]}</span>{skill.origin==='reference' && <a href={skill.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`${skill.name} 原始链接（新窗口）`}>原始链接</a>}</div>
+  <a class="skill-view" href={`/skills/${skill.slug}/`} aria-label={`查看 ${skill.name}`}>查看</a>
+</li>

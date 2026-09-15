@@ -3,6 +3,7 @@ import '@fontsource-variable/ibm-plex-sans';
 import '@fontsource-variable/noto-serif-sc';
 import '@fontsource/ibm-plex-mono/400.css';
 import '../styles/global.css';
+import '../styles/reading-themes.css';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import { siteMeta } from '../data/site';
@@ -10,7 +11,7 @@ import { siteMeta } from '../data/site';
 interface Props {
   title?: string;
   description?: string;
-  section?: 'home' | 'writing' | 'knowledge' | 'projects' | 'tools' | 'about';
+  section?: 'home' | 'writing' | 'knowledge' | 'projects' | 'tools' | 'skills' | 'about';
   bodyClass?: string;
 }
 
@@ -42,11 +43,17 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
     <title>{title}</title>
     <script is:inline>
       (() => {
-        const stored = localStorage.getItem('inkbrain-theme');
+        let stored;
+        let style;
+        try {
+          stored = localStorage.getItem('inkbrain-theme');
+          style = localStorage.getItem('inkbrain-style');
+        } catch { /* Storage is optional; the controls still work for this page. */ }
         const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.documentElement.dataset.theme = stored === 'light' || stored === 'dark'
           ? stored
           : systemDark ? 'dark' : 'light';
+        document.documentElement.dataset.style = style === 'workbench' ? 'workbench' : 'paper';
       })();
     </script>
   </head>
@@ -57,5 +64,9 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
       <slot />
     </main>
     <SiteFooter />
+    <script>
+      import { renderDiagrams } from '../lib/mermaid-client.js';
+      void renderDiagrams();
+    </script>
   </body>
 </html>

@@ -1,0 +1,74 @@
+.topic-exhibition-home { width:min(calc(100% - 64px),1240px); margin:36px auto 72px; }
+.topic-exhibition-intro { display:flex; justify-content:space-between; align-items:center; gap:36px; padding-bottom:28px; margin-bottom:28px; border-bottom:var(--rule); }
+.topic-exhibition-eyebrow { margin:0 0 14px; font:11px/1.6 var(--mono); color:var(--accent); }
+.topic-exhibition-intro h1 { margin:0; font:600 clamp(30px,3.2vw,42px)/1.5 var(--display); text-wrap:balance; }
+.topic-exhibition-intro h1 span { display:block; }
+.topic-exhibition-description { margin:16px 0 0; font:14px/1.8 var(--sans); color:var(--ink-soft); }
+.topic-exhibition-total { flex-shrink:0; margin:0; padding-left:24px; border-left:2px solid var(--accent); color:var(--ink-soft); font:12px/1.7 var(--sans); font-variant-numeric:tabular-nums; }
+.topic-exhibition-total strong { color:var(--ink); font-size:26px; font-weight:500; margin-right:4px; }
+.topic-exhibition-total > span { display:block; margin-top:6px; font-size:11px; }
+.topic-exhibition-list { display:grid; gap:26px; }
+.topic-exhibit { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); min-width:0; border:var(--rule); background:var(--surface,var(--paper-soft)); }
+.topic-exhibit-label { display:flex; flex-direction:column; align-items:flex-start; padding:28px 30px; background:var(--paper-deep); min-width:0; }
+.topic-exhibit-kicker { margin:0 0 14px; color:var(--accent); font:11px/1.6 var(--mono); }
+.topic-exhibit-label h2 { margin:0 0 16px; font:600 clamp(25px,2.3vw,32px)/1.5 var(--display); text-wrap:pretty; overflow-wrap:anywhere; }
+.topic-exhibit-label h2 a { color:inherit; text-decoration:none; }
+.topic-exhibit-label h2 a:hover { text-decoration:underline; text-underline-offset:6px; }
+.topic-exhibit-summary { margin:0 0 22px; font:13px/1.9 var(--sans); color:var(--ink-soft); overflow-wrap:anywhere; }
+.topic-exhibit-stats { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:auto; font:11px/1.7 var(--sans); font-variant-numeric:tabular-nums; color:var(--ink-soft); }
+.topic-exhibit-enter { display:flex; justify-content:space-between; align-items:center; align-self:stretch; margin-top:18px; padding-top:14px; border-top:var(--rule); color:var(--accent); font:12px/1.8 var(--sans); text-decoration:none; }
+.topic-exhibit-enter span { font-size:22px; }
+.topic-exhibit-enter:hover { text-decoration:underline; text-underline-offset:4px; }
+.topic-exhibit-reversed { grid-template-columns:minmax(0,2fr) minmax(0,1fr); }
+.topic-exhibit-reversed .topic-exhibit-label { grid-column:2; grid-row:1; }
+.topic-exhibit-reversed .topic-exhibit-content { grid-column:1; grid-row:1; }
+.topic-exhibit-tone-1 .topic-exhibit-label { background:var(--accent); color:var(--paper); }
+.topic-exhibit-tone-2 .topic-exhibit-label { background:var(--ink); color:var(--paper); }
+.topic-exhibit:is(.topic-exhibit-tone-1,.topic-exhibit-tone-2) .topic-exhibit-label :is(.topic-exhibit-summary,.topic-exhibit-kicker,.topic-exhibit-stats,.topic-exhibit-enter) { color:inherit; }
+.topic-exhibit:is(.topic-exhibit-tone-1,.topic-exhibit-tone-2) .topic-exhibit-enter { border-color:currentColor; }
+.topic-exhibit-label a:focus-visible { outline-color:currentColor; }
+.topic-exhibit-content { display:flex; flex-direction:column; justify-content:center; padding:28px 32px; min-width:0; }
+.topic-exhibit-content-label { margin:0 0 22px; font:11px/1.6 var(--sans); color:var(--ink-soft); }
+.topic-exhibit-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:28px; list-style:none; margin:0; padding:0; }
+.topic-exhibit-items:has(> li:only-child) { grid-template-columns:minmax(0,1fr); }
+.topic-exhibit-items > li { min-width:0; }
+.topic-exhibit-items > li + li { padding-left:28px; border-left:var(--rule); }
+.topic-exhibit-item-type { margin:0 0 14px; font:11px/1.7 var(--sans); color:var(--accent); }
+.topic-exhibit-items h3 { margin:0 0 14px; font:600 22px/1.6 var(--display); overflow-wrap:anywhere; text-wrap:pretty; }
+.topic-exhibit-items h3 a { color:var(--ink); text-decoration:none; }
+.topic-exhibit-items h3 a:hover { color:var(--accent); }
+.topic-exhibit-items h3 span { display:block; margin-top:12px; color:var(--accent); font:22px/1.4 var(--sans); }
+.topic-exhibit-item-summary { margin:0; font:13px/1.85 var(--sans); color:var(--ink-soft); overflow-wrap:anywhere; }
+.topic-exhibit-more { margin-top:24px; padding-top:16px; border-top:var(--rule); font:12px/1.7 var(--sans); color:var(--accent); text-decoration:none; }
+.topic-exhibit-more:hover { text-decoration:underline; }
+.topic-exhibit-pending { padding:20px 0; color:var(--ink-soft); }
+.topic-exhibit-pending p { margin:0 0 10px; font:600 18px/1.6 var(--display); }
+.topic-exhibit-pending span { font:13px/1.8 var(--sans); }
+.topic-exhibition-empty { padding:44px 18px; text-align:center; }
+.topic-exhibition-empty h2 { margin:0; font:600 24px/1.6 var(--display); }
+.topic-exhibition-empty p { margin:12px 0 22px; color:var(--ink-soft); font-size:14px; }
+.topic-exhibition-empty a { color:var(--accent); font-size:13px; }
+.topic-exhibition-page .site-footer { margin-top:64px; }
+@media(max-width:1000px) {
+  .topic-exhibition-home { width:calc(100% - 40px); }
+  .topic-exhibit-label { padding:24px; }
+  .topic-exhibit-content { padding:24px; }
+  .topic-exhibit-items { grid-template-columns:minmax(0,1fr); gap:20px; }
+  .topic-exhibit-items > li + li { padding:20px 0 0; border-left:0; border-top:var(--rule); }
+  .topic-exhibit-items h3 { font-size:20px; }
+  .topic-exhibit-items h3 span { display:inline; margin-left:12px; }
+}
+@media(max-width:700px) {
+  .topic-exhibition-home { width:calc(100% - 36px); margin:24px auto 44px; }
+  .topic-exhibition-intro { display:block; padding-bottom:22px; margin-bottom:22px; }
+  .topic-exhibition-intro h1 { font-size:29px; }
+  .topic-exhibition-description { font-size:13px; }
+  .topic-exhibition-total { display:flex; align-items:baseline; gap:6px; border:0; padding:0; margin-top:18px; }
+  .topic-exhibition-total strong { font-size:18px; }
+  .topic-exhibition-total > span { margin:0 0 0 auto; }
+  .topic-exhibit,.topic-exhibit-reversed { grid-template-columns:minmax(0,1fr); }
+  .topic-exhibit-reversed .topic-exhibit-label,.topic-exhibit-reversed .topic-exhibit-content { grid-column:auto; grid-row:auto; }
+  .topic-exhibit-label h2 { font-size:28px; }
+  .topic-exhibit-items h3 { font-size:21px; }
+  .topic-exhibit-items h3 span { display:inline; }
+}
