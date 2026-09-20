@@ -269,7 +269,48 @@ const slugify = (value) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 100)
     .replace(/-+$/, '');
-const autoId = () => `skill-${crypto.randomUUID().slice(0, 12)}`;
+// navigator.clipboard 同样只在安全上下文可用。HTTP 访问时退回选中文本，
+// 由作者自己按快捷键复制，而不是抛错。
+async function copyText(value) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      notify("引用地址已复制");
+      return;
+    }
+  } catch {
+    // 权限被拒时走下面的兜底。
+  }
+  // 退回旧的 execCommand。它已废弃但在非安全上下文仍可用，是这里唯一的选择。
+  const field = document.createElement("textarea");
+  field.value = value;
+  field.setAttribute("readonly", "");
+  field.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0";
+  document.body.append(field);
+  field.select();
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  field.remove();
+  notify(
+    copied
+      ? "引用地址已复制"
+      : "当前连接不是 HTTPS，浏览器不允许自动复制，请手动选中地址复制。",
+    !copied,
+  );
+}
+// crypto.randomUUID 只在安全上下文（HTTPS 或 localhost）可用，HTTP 访问时不存在。
+// 这里的标识只需在草稿内唯一，不承担安全用途，退回 getRandomValues 或时间加随机数。
+function randomHex(length) {
+  if (crypto?.randomUUID) return crypto.randomUUID().replaceAll("-", "").slice(0, length);
+  const bytes = new Uint8Array(Math.ceil(length / 2));
+  if (crypto?.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, length);
+}
 // 仅在标识还是自动生成时跟随名称；已保存的记录地址不可更改。
 function syncSkillId() {
   if (!editing?.isNew || !/^skill-[0-9a-f-]+$/.test(editing.id)) return false;
@@ -660,9 +701,9 @@ function newRecord() {
   }[page];
   return {
     id: ["articles", "knowledge"].includes(page)
-      ? `${page === "knowledge" ? "topic" : "article"}-${date.replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8)}`
+      ? `${page === "knowledge" ? "topic" : "article"}-${date.replaceAll("-", "")}-${randomHex(8)}`
       : page === "skills"
-        ? `skill-${crypto.randomUUID().slice(0, 12)}`
+        ? `skill-${randomHex(12)}`
       : "",
     data,
     body: "",
@@ -1102,8 +1143,7 @@ app.addEventListener("click", async (e) => {
       media();
       notify(`已删除「${asset.name}」`);
     } else if (b.dataset.copy) {
-      await navigator.clipboard.writeText(b.dataset.copy);
-      notify("引用地址已复制");
+      await copyText(b.dataset.copy);
     } else if (b.dataset.action === "new") {
       skillReport = null;
       editing = newRecord();
