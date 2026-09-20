@@ -17,6 +17,34 @@ import {
   cleanMarkdown,
 } from "./schema.mjs";
 import { createPublisher } from "./publisher.mjs";
+import { inspectSkillPackage } from "./skill-package.mjs";
+
+// 校验失败要说清楚是哪个字段、超了多少，而不是把 Zod 的原文抛给作者。
+const fieldNames = {
+  name: "名称",
+  title: "标题",
+  summary: "简介",
+  version: "版本",
+  monogram: "图标字符",
+  documentation: "详细说明",
+  sourceUrl: "原始链接",
+  category: "能力分类",
+  order: "排序",
+  slug: "页面地址",
+  fileUrl: "Skill 文件",
+  fileName: "文件名",
+  checksum: "SHA-256",
+};
+function describeIssue(issue) {
+  const key = [...issue.path].reverse().find((part) => fieldNames[part]);
+  const label = key ? fieldNames[key] : issue.path.join(".") || "内容";
+  if (issue.code === "too_big" && typeof issue.maximum === "number")
+    return `${label}最多 ${issue.maximum} 个字符`;
+  if (issue.code === "too_small" && issue.minimum === 1) return `${label}不能为空`;
+  if (issue.code === "too_small" && typeof issue.minimum === "number")
+    return `${label}至少 ${issue.minimum} 个字符`;
+  return `${label}：${issue.message}`;
+}
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(here, "../..");
@@ -55,8 +83,19 @@ export async function createApp(options = {}) {
   const origin =
     options.origin ?? process.env.ADMIN_ORIGIN ?? `http://127.0.0.1:${port}`;
   const local = ["127.0.0.1", "::1"].includes(host);
-  const dir =
-    options.dir ?? process.env.ADMIN_DATA_DIR ?? path.join(root, ".inkbrain");
+  const dir = path.resolve(
+    options.dir ?? process.env.ADMIN_DATA_DIR ?? path.join(root, ".inkbrain"),
+  );
+  // 数据目录落在仓库内时，git pull、重新 clone 或切换部署目录都会连带丢数据。
+  // 本地开发用默认目录是有意为之，只在非回环监听（即对外提供服务）时警告。
+  if (
+    !local &&
+    (dir === root || dir.startsWith(root + path.sep)) &&
+    !options.dir
+  )
+    console.warn(
+      `警告：数据目录 ${dir} 位于仓库内，代码更新可能导致内容丢失。请把 ADMIN_DATA_DIR 指向仓库之外的持久目录。`,
+    );
   const web = options.web ?? path.join(root, "apps/web");
   const store = await createStore(dir, web);
   const auth = await createAuth({
@@ -212,6 +251,7 @@ export async function createApp(options = {}) {
 
   const uploadDir = path.join(dir, "uploads");
   const documentLimit = options.documentLimit ?? 2 * 1024 * 1024;
+  const inspectLimit = options.inspectLimit ?? 64 * 1024 * 1024;
   await fs.mkdir(uploadDir, { recursive: true, mode: 0o700 });
   const upload = multer({
     storage: multer.diskStorage({
@@ -390,6 +430,19 @@ export async function createApp(options = {}) {
     if (!asset.type.startsWith("image/")) res.attachment(asset.name);
     res.sendFile(path.join(uploadDir, asset.filename), { dotfiles: "allow" });
   });
+  // 只在内存中读取压缩包里的 SKILL.md 与清单，不解包落盘、不执行其中内容。
+  app.post("/admin/api/skill-inspect", async (req, res) => {
+    const filename = String(req.body?.filename ?? "");
+    if (!/^[a-f0-9-]+\.(?:zip|skill)$/.test(filename))
+      return res.status(400).json({ error: "请先上传 ZIP 或 .skill 文件" });
+    const asset = await findAsset(filename);
+    if (!asset) return res.status(404).json({ error: "找不到该文件，请重新上传" });
+    if (asset.size > inspectLimit)
+      return res.status(413).json({
+        error: `压缩包超过 ${inspectLimit / 1024 / 1024} MB，无法解析说明，仍可作为附件下载`,
+      });
+    res.json(inspectSkillPackage(await fs.readFile(path.join(uploadDir, filename))));
+  });
   app.post("/admin/api/build", async (req, res) => {
     const state = await store.read();
     if (req.body.revision !== state.revision)
@@ -441,7 +494,7 @@ export async function createApp(options = {}) {
         : 500);
     const error =
       err.name === "ZodError"
-        ? err.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("；")
+        ? err.issues.map(describeIssue).join("；")
         : err instanceof multer.MulterError
           ? "文件上传失败：请检查大小（最多 256 MB）和文件数量"
           : err.message;
@@ -453,10 +506,19 @@ if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
+  // 只在作为可执行入口时读 .env；测试直接构造 app，不应受本机配置影响。
+  // 已存在的环境变量优先，便于临时覆盖而不改文件。
+  for (const file of [path.join(root, ".env.local"), path.join(root, ".env")])
+    try {
+      process.loadEnvFile(file);
+    } catch {
+      // 文件不存在时跳过。
+    }
   const service = await createApp();
+  const dataDir = service.dir;
   const server = service.app.listen(service.port, service.host, () =>
     console.log(
-      `InkBrain 后台：${service.origin}/admin/\n发布站点：${service.origin}/`,
+      `InkBrain 后台：${service.origin}/admin/\n发布站点：${service.origin}/\n数据目录：${dataDir}`,
     ),
   );
   for (const signal of ["SIGTERM", "SIGINT"])

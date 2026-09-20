@@ -4,6 +4,8 @@ const app = $("#app"),
 let theme =
   document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 let richHydrating = false;
+// 已记录过初始宽度的图片。每张图片的首次 ResizeObserver 回调属于载入，不是作者的修改。
+let richMeasured = new WeakSet();
 let richImageHandler = null;
 let richResizeObserver = null;
 function applyTheme(nextTheme) {
@@ -127,6 +129,7 @@ let csrf = "",
   page = "dashboard",
   editing = null,
   dirty = false,
+  skillReport = null,
   richEditor = null;
 const escape = (s) =>
   String(s ?? "").replace(
@@ -213,12 +216,16 @@ function draw() {
       "beforeend",
       `<section class="card workspace-help"><h2>本地启动与更新</h2><p class="help">修改网站代码后，按下面流程检查和预览。</p><div class="command-guide"><div><code>npm run dev</code><span>开发预览</span><p>启动 Astro 开发服务器，通常访问 <code>http://127.0.0.1:4321/</code>，修改代码后会自动刷新。</p></div><div><code>npm run check</code><span>类型检查</span><p>检查 Astro 和 TypeScript 是否存在错误。</p></div><div><code>npm run build</code><span>生成构建产物</span><p>生成 <code>apps/web/dist</code>。这一步不会自动更新 4322 游客站点。</p></div><div><code>npm run admin</code><span>启动后台</span><p>启动后台和已发布游客站点，访问 <code>http://127.0.0.1:4322/admin/</code>。</p></div></div><div class="status-guide-note"><h3>让修改对游客生效</h3><p>文章、专题、项目和工具可在后台保存后点击右上角“发布”。网站代码或样式修改完成后，也需要重新构建并发布，4322 才会切换到新版本。</p></div></section>`,
     );
+    c.insertAdjacentHTML(
+      "beforeend",
+      `<section class="card workspace-help"><h2>内容存放位置</h2><p class="help">你保存的所有内容都在后台数据目录里，不在代码仓库里。</p><dl class="status-guide"><div><dt><code>draft.json</code><span>全部内容</span></dt><dd>文章、专题、项目、工具与 Skill 的正文和字段。</dd></div><div><dt><code>uploads/</code><span>上传的文件</span></dt><dd>图片、安装包与 Skill 压缩包的原始文件，和 <code>assets.json</code> 成对使用。</dd></div><div><dt><code>releases/</code><span>发布快照</span></dt><dd>每次发布生成的完整站点副本，游客看到的就是当前指向的那一份。</dd></div><div><dt><code>owner.json</code><span>登录密码</span></dt><dd>加盐哈希，不是明文。</dd></div></dl><div class="status-guide-note"><h3>线上不要放在仓库里</h3><p>数据目录默认是仓库根目录下的 <code>.inkbrain/</code>，本地开发用它没问题。但线上必须把 <code>ADMIN_DATA_DIR</code> 指向仓库之外的固定目录，例如 <code>/var/lib/inkbrain</code>；否则拉取代码、重新克隆仓库或更换部署目录时，已有内容可能一起消失。</p><p>配置方式是把仓库根目录的 <code>.env.example</code> 复制成 <code>.env</code> 后填写，这两个文件都不会提交到代码仓库。启动后台时终端会打印实际使用的数据目录，可以据此核对是否配置生效。</p><p>迁移已有部署时先停止服务，再整体移动数据目录。<code>assets.json</code> 与 <code>uploads/</code> 必须一起移动：发布时会逐字节校验附件的 SHA-256，只移动其中一个会导致发布失败。</p></div></section>`,
+    );
   } else if (page === "tags") tagManager();
   else if (page === "assets") media();
   else if (page === "settings") {
     c.innerHTML = `<form id="settings-form" class="card"><div class="fields">${fields(snapshot.state.settings)}</div><div class="editor-actions"><span class="help">可以先保存草稿，也可以直接发布。</span><div class="editor-action-buttons"><button type="submit" data-save-mode="draft">保存草稿</button><button type="submit" class="primary" data-save-mode="publish">保存并发布</button></div></div></form>`;
   }
-  if (page === 'help') c.insertAdjacentHTML('beforeend', '<section class="card"><h2>Skill 上传与发布</h2><ol><li>打开 Skill 栏目，新增并填写名称、分类、简介与详细说明。</li><li>来源选择“自研”或“引用”；引用必须填写 HTTPS 原始链接，不代表验证状态。</li><li>手动上传 Markdown（最多 2 MB）、ZIP 或 .skill（最多 256 MB）。文件仅存储与下载，不解压、不执行。</li><li>可先保存草稿；上传文件后点击“保存并发布”，游客即可查看详情并下载。</li></ol><p>不会扫描或同步本地 Skill 目录。引用内容请确认分享权限并保留作者、原始链接与许可证。新增功能需重启后台服务后生效。</p></section>');
+  if (page === 'help') c.insertAdjacentHTML('beforeend', '<section class="card"><h2>Skill 上传与发布</h2><ol><li>打开 Skill 栏目，新增并填写名称、分类、简介与详细说明。</li><li>来源选择“自研”或“引用”；引用必须填写 HTTPS 原始链接，不代表验证状态。</li><li>手动上传 Markdown（最多 2 MB）、ZIP 或 .skill（最多 256 MB）。压缩包不解包落盘、不执行其中内容。</li><li>上传压缩包后会读取包内 SKILL.md 与清单，自动填入名称、简介、版本与说明中尚未填写的部分；已填内容不会被覆盖。</li><li>可先保存草稿；上传文件后点击“保存并发布”，游客即可查看详情并下载。</li></ol><p>不会扫描或同步本地 Skill 目录。自动填入的说明只作为文本渲染，不会执行其中指令。引用内容请确认分享权限并保留作者、原始链接与许可证。新增功能需重启后台服务后生效。</p></section>');
 }
 function field(value, key, prefix) {
   if (
@@ -254,21 +261,148 @@ function field(value, key, prefix) {
     return `${head}<textarea id="${id}" name="${name}">${escape(value)}</textarea></label>`;
   return `${head}<input id="${id}" name="${name}" value="${escape(value)}" type="${typeof value === "number" ? "number" : ["publishedAt", "releasedAt"].includes(key) ? "date" : "text"}"></label>`;
 }
+// 页面地址由名称推导。中文名推不出拉丁 slug，退回自动标识而不是生成 URL 编码的地址。
+const slugify = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100)
+    .replace(/-+$/, '');
+const autoId = () => `skill-${crypto.randomUUID().slice(0, 12)}`;
+// 仅在标识还是自动生成时跟随名称；已保存的记录地址不可更改。
+function syncSkillId() {
+  if (!editing?.isNew || !/^skill-[0-9a-f-]+$/.test(editing.id)) return false;
+  const slug = slugify($('#f-name')?.value);
+  const next =
+    slug && !snapshot.state.skills.some((record) => record.id === slug)
+      ? slug
+      : editing.id;
+  if (next === editing.id) return false;
+  editing.id = next;
+  editing.data.slug = next;
+  if ($('#record-id')) $('#record-id').value = next;
+  const address = $('#skill-address code');
+  if (address) address.textContent = `/skills/${next}/`;
+  return true;
+}
+// 只填空字段，不覆盖作者已填内容；重新上传不会刷新旧说明。
+function fillFromSkillPackage(report) {
+  const filled = [];
+  // 接口已按 schema 上限截断，这里再兜一层：maxlength 管不住脚本写入的值。
+  const caps = { name: 240, summary: 240, version: 100, documentation: 500000 };
+  for (const [key, label] of [['name','名称'],['summary','简介'],['version','版本'],['documentation','详细说明']])
+    if (report[key] && !String(editing.data[key] ?? '').trim()) {
+      editing.data[key] = String(report[key]).slice(0, caps[key]);
+      filled.push(label);
+    }
+  report.filled = filled;
+  // 包名通常是可用的拉丁 slug，优先拿它定地址。
+  if (editing.isNew && report.name && /^skill-[0-9a-f-]+$/.test(editing.id)) {
+    const slug = slugify(report.name);
+    if (slug && !snapshot.state.skills.some((record) => record.id === slug)) {
+      // 服务端要求 slug 与 id 一致，两者一起改。
+      editing.id = slug;
+      editing.data.slug = slug;
+      report.slug = slug;
+    }
+  }
+  return report;
+}
+// 选择与拖入共用同一条上传路径。
+async function receiveSkillFile(file) {
+  if (!/\.(md|markdown|zip|skill)$/i.test(file.name))
+    throw Error('请选择 Markdown、ZIP 或 .skill 文件');
+  const markdown = /\.(md|markdown)$/i.test(file.name);
+  if (file.size > (markdown ? 2 : 256) * 1024 * 1024)
+    throw Error(markdown ? 'Markdown 不能超过 2 MB' : 'Skill 文件不能超过 256 MB');
+  capture();
+  const controls = [...app.querySelectorAll('button,input,select,textarea')];
+  const wasDisabled = controls.map(control => control.disabled);
+  controls.forEach(control => { control.disabled = true; });
+  notify('正在上传 Skill 文件…');
+  try {
+    const asset = await uploadAsset(file);
+    Object.assign(editing.data, { fileUrl:asset.url, fileName:asset.name, fileSize:asset.size, checksum:asset.sha256 });
+    dirty = true;
+    skillReport = null;
+    if (markdown) {
+      editor();
+      notify('Skill 文件已上传。请填写说明，保存并发布后即可下载。');
+      return;
+    }
+    notify('文件已上传，正在读取包内说明…');
+    try {
+      skillReport = await api('skill-inspect', 'POST', { filename: asset.filename });
+      fillFromSkillPackage(skillReport);
+      notify(`已读取 ${skillReport.entryPath}，请核对内容后保存。`);
+    } catch (error) {
+      skillReport = { failed: error.message };
+      notify(`文件已保存，但未能读取说明：${error.message}`, true);
+    }
+    editor();
+  } finally {
+    controls.forEach((control,index) => { control.disabled = wasDisabled[index]; });
+  }
+}
+const skillSize = (bytes) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${(bytes / 1024).toFixed(1)} KB`;
+const skillCategoryOptions = [['development','开发与调试'],['documents','文档与报告'],['design','设计与前端'],['data','数据与分析'],['operations','运维与观测'],['other','其他能力']];
+// 上传区：未上传时是投放提示，已上传时显示解析摘要。
+function skillPackagePanel(data) {
+  const report = skillReport;
+  const summary = report && !report.failed
+    ? `<dl class="skill-parse-facts">
+        <div><dt>包内文档</dt><dd><code>${escape(report.entryPath)}</code></dd></div>
+        <div><dt>包内文件</dt><dd>${report.fileCount} 个 · 解压后 ${skillSize(report.totalBytes)}</dd></div>
+        ${report.version ? `<div><dt>包声明版本</dt><dd>${escape(report.version)}</dd></div>` : ''}
+      </dl>
+      ${report.filled?.length ? `<p class="skill-parse-filled">已自动填入：${report.filled.map(escape).join('、')}${report.slug ? `，标识设为 <code>${escape(report.slug)}</code>` : ''}。可继续修改。</p>` : '<p class="skill-parse-filled">表单已有内容，未覆盖任何字段。</p>'}
+      ${report.notes?.length ? `<ul class="skill-parse-notes">${report.notes.map(note=>`<li>${escape(note)}</li>`).join('')}</ul>` : ''}`
+    : report?.failed
+      ? `<p class="skill-parse-failed">未能读取包内说明：${escape(report.failed)}。文件已保存，可手工填写详细说明。</p>`
+      : '';
+  return `<section class="card skill-section skill-package-card">
+    <header class="skill-section-head"><h2>Skill 包</h2><p>上传后自动读取包内 <code>SKILL.md</code> 填充空白字段。压缩包只读取说明与清单，不解包、不执行。</p></header>
+    <label class="skill-drop" for="skill-package-upload">
+      <input type="file" id="skill-package-upload" accept=".md,.markdown,.zip,.skill">
+      <strong>${data.fileUrl ? '更换文件' : '选择或拖入 Skill 文件'}</strong>
+      <span>SKILL.md、ZIP 或 .skill · Markdown 最多 2 MB，压缩包最多 256 MB（超过 64 MB 不解析说明）</span>
+    </label>
+    ${data.fileUrl
+      ? `<div class="skill-file-card">
+          <div class="skill-file-head"><strong>${escape(data.fileName)}</strong><span class="badge">${skillSize(data.fileSize)}</span></div>
+          ${summary}
+          <details class="skill-checksum"><summary>SHA-256</summary><code>${escape(data.checksum)}</code></details>
+        </div>`
+      : '<p class="skill-empty-note">尚未上传文件。可以先保存草稿，发布前必须上传。</p>'}
+  </section>`;
+}
 function skillFields(data) {
-  const categories = [['development','开发与调试'],['documents','文档与报告'],['design','设计与前端'],['data','数据与分析'],['operations','运维与观测'],['other','其他能力']];
-  return `<div class="fields">
-    ${field(data.name, 'name', '')}
-    <input id="record-id" type="hidden" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" required>
-    <div class="skill-compact-row"><label class="field">能力分类<select name="category">${categories.map(([value,label])=>`<option value="${value}" ${data.category===value?'selected':''}>${label}</option>`).join('')}</select></label>${field(data.monogram,'monogram','')}${field(data.order,'order','')}</div>
-    <label class="field">来源<select name="origin" id="skill-origin"><option value="original" ${data.origin==='original'?'selected':''}>自研</option><option value="reference" ${data.origin==='reference'?'selected':''}>引用</option></select></label>
-    <label class="field wide">原始链接${data.origin==='reference'?'（必填）':'（选填）'}<input name="sourceUrl" type="url" value="${escape(data.sourceUrl)}" placeholder="https://" ${data.origin==='reference'?'required':''}><small>引用外部 Skill 时必须注明原始来源，游客页会显示此链接。</small></label>
-    ${field(data.summary,'summary','')}
-    <label class="field check"><input type="checkbox" name="featured" ${data.featured?'checked':''}>放入推荐能力</label>
-    <label class="field wide">Skill 文件<input type="file" id="skill-package-upload" accept=".md,.markdown,.zip,.skill"><small>手动上传 SKILL.md、ZIP 或 .skill。Markdown 最多 2 MB，压缩包最多 256 MB；仅保存与下载，不解包、不执行。</small></label>
-    <div class="wide help">${data.fileUrl ? `已上传：${escape(data.fileName)} · ${(data.fileSize/1024).toFixed(1)} KB<br>SHA-256：<code>${escape(data.checksum)}</code>` : '尚未上传文件，可以先保存草稿；发布前必须上传。'}</div>
-    <label class="field wide">详细说明 · Markdown<textarea id="f-skill-documentation" name="documentation" rows="16">${escape(data.documentation)}</textarea><small>填写适用场景、使用方法、输入输出、依赖及注意事项。上传 MD 不会执行其中的指令。</small></label>
-    <div class="wide"><button type="button" data-action="skill-preview">预览说明</button><div id="skill-preview" class="body-preview" hidden></div></div>
-  </div>`;
+  const reference = data.origin === 'reference';
+  return `<section class="card skill-section">
+    <header class="skill-section-head"><h2>能力身份</h2><p>决定列表展示与页面地址。</p></header>
+    <div class="skill-grid">
+      <label class="field span-3" for="f-name"><span>名称</span><input id="f-name" name="name" value="${escape(data.name)}" required maxlength="240" aria-describedby="skill-address"><input id="record-id" type="hidden" value="${escape(editing.id)}"><small id="skill-address" class="skill-address">页面地址 <code>/skills/${escape(editing.id)}/</code>${editing.isNew ? '，由名称自动生成' : '，发布后不可更改'}</small></label>
+      <label class="field span-3" for="f-summary"><span>简介</span><textarea id="f-summary" name="summary" rows="2" required maxlength="240">${escape(data.summary)}</textarea><small>显示在能力列表与搜索结果。</small></label>
+      <label class="field" for="f-category"><span>能力分类</span><select id="f-category" name="category">${skillCategoryOptions.map(([value,label])=>`<option value="${value}" ${data.category===value?'selected':''}>${label}</option>`).join('')}</select></label>
+      <label class="field" for="f-monogram"><span>图标字符</span><input id="f-monogram" name="monogram" value="${escape(data.monogram)}" maxlength="5" required><small>列表左侧的短标记，1 到 5 个字符。</small></label>
+      <label class="field" for="f-order"><span>排序</span><input id="f-order" name="order" type="number" min="0" value="${escape(data.order)}"><small>数字小的排在前面。</small></label>
+      <label class="field" for="f-version"><span>版本</span><input id="f-version" name="version" value="${escape(data.version)}" maxlength="100" placeholder="1.0.0"></label>
+      <label class="field" for="f-origin"><span>来源</span><select id="f-origin" name="origin"><option value="original" ${reference?'':'selected'}>自研</option><option value="reference" ${reference?'selected':''}>引用</option></select></label>
+      ${reference
+        ? `<label class="field span-2" for="f-sourceUrl"><span>原始链接</span><input id="f-sourceUrl" name="sourceUrl" type="url" value="${escape(data.sourceUrl)}" placeholder="https://" required><small>引用外部 Skill 必须注明来源，访客页会显示此链接。</small></label>`
+        : `<input type="hidden" name="sourceUrl" value="${escape(data.sourceUrl)}">`}
+      <label class="field check span-3"><input type="checkbox" name="featured" ${data.featured?'checked':''}><span>放入推荐能力</span></label>
+    </div>
+  </section>
+  ${skillPackagePanel(data)}
+  <section class="card skill-section">
+    <header class="skill-section-head"><h2>详细说明</h2><p>Markdown 格式。上传压缩包时会自动填入包内 <code>SKILL.md</code> 正文。</p></header>
+    <label class="field" for="f-skill-documentation"><span class="visually-hidden">详细说明</span><textarea id="f-skill-documentation" name="documentation" rows="18">${escape(data.documentation)}</textarea><small>建议写清适用场景、使用方法、输入输出、依赖与注意事项。说明只作为文本渲染，不会执行其中的指令。</small></label>
+    <div class="skill-doc-actions"><button type="button" data-action="skill-preview">预览说明</button></div>
+    <div id="skill-preview" class="body-preview" hidden></div>
+  </section>`;
 }
 function fields(data, prefix = "") {
   return Object.entries(data)
@@ -435,6 +569,8 @@ function editor() {
   }
   richResizeObserver?.disconnect();
   richResizeObserver = null;
+  // 重绘会换掉整批 img 元素，旧的测量记录没有意义。
+  richMeasured = new WeakSet();
   const markdown = page === "articles";
   const isArticle = page === "articles";
   const isProject = page === "projects";
@@ -458,7 +594,7 @@ function editor() {
           ? `<div class="knowledge-form">${knowledgeFields(editorData)}</div>`
           : `<div class="fields"><label class="field">内容标识<input id="record-id" value="${escape(editing.id)}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100" required ${editing.isNew ? "" : "readonly"} aria-describedby="id-help"><small id="id-help">英文小写与短横线，发布后用于页面地址。</small></label>${fields(editorData)}</div>`;
   $("#content").innerHTML =
-    `<form id="editor" class="${isArticle ? "article-editor" : isProject ? "project-editor" : isTool ? "tool-editor" : isKnowledge ? "knowledge-editor" : isSkill ? "skill-editor" : ""}"><div class="card ${isArticle ? "article-meta-card" : "editor-meta-card"} ${isProject ? "project-editor-card" : ""}">${statusFields}${editorFields}</div>${
+    `<form id="editor" class="${isArticle ? "article-editor" : isProject ? "project-editor" : isTool ? "tool-editor" : isKnowledge ? "knowledge-editor" : isSkill ? "skill-editor" : ""}">${isSkill ? `${statusFields}${editorFields}` : `<div class="card ${isArticle ? "article-meta-card" : "editor-meta-card"} ${isProject ? "project-editor-card" : ""}">${statusFields}${editorFields}</div>`}${
       markdown
         ? `<div class="card article-writing-card"><div class="editor-mode-tabs" role="tablist" aria-label="编辑模式"><button type="button" class="active" data-editor-mode="wysiwyg" role="tab" aria-selected="true">正文</button><button type="button" data-editor-mode="markdown" role="tab" aria-selected="false">Markdown</button><button type="button" data-editor-mode="preview" role="tab" aria-selected="false">预览</button></div><div id="body-editor" class="toast-editor-host" aria-label="正文编辑区"></div><textarea id="body" class="markdown-source" aria-hidden="true">${escape(editing.body)}</textarea><small>支持标题、加粗、斜体、列表、引用、代码块、表格和图片。可直接粘贴图片。</small><div id="markdown-preview" class="body-preview" hidden></div></div><section class="card source-import"><h3>导入原文件</h3><p class="help">上传后会替换当前正文，支持 MD、Markdown、HTML、JPG、JPEG、PNG 和 WebP。</p><label class="field"><span>选择文件</span><input type="file" id="editor-upload" accept=".html,.htm,.md,.markdown,.png,.jpg,.jpeg,.webp"></label></section>`
         : ""
@@ -601,6 +737,7 @@ async function initRichEditor(source = "") {
   const host = $("#body-editor");
   if (!host || !window.toastui?.Editor) return;
   richHydrating = true;
+  richSettled = false;
   try {
     window.toastui.Editor.setLanguage("zh-CN", {
       Headings: "标题",
@@ -675,10 +812,20 @@ async function initRichEditor(source = "") {
     };
     host.addEventListener("dblclick", richImageHandler);
     richResizeObserver = new ResizeObserver((entries) => {
+      // ResizeObserver 在开始观察每张图片时就会回调一次，且回调是异步的，
+      // 发生在 richHydrating 复位之后。这一次只是记录初始宽度，不是作者的修改；
+      // 否则打开带图文章、或保存后重绘编辑器，都会立刻被标成「未保存」。
+      let resized = false;
       for (const { target } of entries) {
-        if (target.tagName === "IMG" && target.clientWidth)
-          target.setAttribute("width", String(Math.round(target.clientWidth)));
+        if (target.tagName !== "IMG" || !target.clientWidth) continue;
+        const width = String(Math.round(target.clientWidth));
+        const first = !richMeasured.has(target);
+        richMeasured.add(target);
+        if (target.getAttribute("width") === width) continue;
+        target.setAttribute("width", width);
+        if (!first) resized = true;
       }
+      if (!resized) return;
       syncRichBody();
       dirty = true;
     });
@@ -752,29 +899,30 @@ app.addEventListener("input", (e) => {
     topicCandidates();
     return;
   }
+  if (e.target.id === "f-name" && page === "skills") syncSkillId();
   if (e.target.id === "body-editor") syncRichBody();
   if (e.target.closest("#editor,#settings-form,#tags-form")) dirty = true;
 });
+for (const type of ["dragover", "dragleave", "drop"])
+  app.addEventListener(type, async (e) => {
+    const drop = e.target.closest?.(".skill-drop");
+    if (!drop) return;
+    e.preventDefault();
+    drop.classList.toggle("dragging", type === "dragover");
+    if (type !== "drop") return;
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    try {
+      await receiveSkillFile(file);
+    } catch (error) {
+      notify(error.message, true);
+    }
+  });
 app.addEventListener("change", async (e) => {
   try {
-    if (e.target.id === 'skill-origin') { capture(); editor(); $('#skill-origin')?.focus(); return; }
+    if (e.target.id === 'f-origin') { capture(); editor(); $('#f-origin')?.focus(); return; }
     if (e.target.id === 'skill-package-upload' && e.target.files?.[0]) {
-      const file = e.target.files[0];
-      if (!/\.(md|markdown|zip|skill)$/i.test(file.name)) throw Error('请选择 Markdown、ZIP 或 .skill 文件');
-      const markdown = /\.(md|markdown)$/i.test(file.name);
-      if (file.size > (markdown ? 2 : 256) * 1024 * 1024) throw Error(markdown ? 'Markdown 不能超过 2 MB' : 'Skill 文件不能超过 256 MB');
-      capture();
-      const controls = [...app.querySelectorAll('button,input,select,textarea')];
-      const wasDisabled = controls.map(control => control.disabled);
-      controls.forEach(control => { control.disabled = true; });
-      notify('正在上传 Skill 文件…');
-      try {
-        const asset = await uploadAsset(file);
-        Object.assign(editing.data, { fileUrl:asset.url, fileName:asset.name, fileSize:asset.size, checksum:asset.sha256 });
-        dirty = true;
-        editor();
-        notify('Skill 文件已上传。请填写说明，保存并发布后即可下载。');
-      } finally { controls.forEach((control,index)=>{control.disabled=wasDisabled[index];}); }
+      await receiveSkillFile(e.target.files[0]);
       return;
     }
     if (e.target.id === "topic-kind") {
@@ -917,6 +1065,7 @@ app.addEventListener("click", async (e) => {
         throw error;
       }
     } else if (b.dataset.edit) {
+      skillReport = null;
       editing = structuredClone(
         snapshot.state[page].find((r) => r.id === b.dataset.edit),
       );
@@ -956,6 +1105,7 @@ app.addEventListener("click", async (e) => {
       await navigator.clipboard.writeText(b.dataset.copy);
       notify("引用地址已复制");
     } else if (b.dataset.action === "new") {
+      skillReport = null;
       editing = newRecord();
       editor();
       window.scrollTo(0, 0);
@@ -1038,7 +1188,6 @@ app.addEventListener("submit", async (e) => {
       editing = structuredClone(
         data.state[page].find((r) => r.id === record.id),
       );
-      dirty = false;
       if (publish) {
         await publishCurrentState();
         editing = structuredClone(
@@ -1046,6 +1195,8 @@ app.addEventListener("submit", async (e) => {
         );
       }
       editor();
+      // 放在重绘之后：重建表单与富文本会触发 input 事件，先清标记会被重新置脏。
+      dirty = false;
       notify(publish ? "保存并发布成功" : "草稿已保存");
     } else if (form.id === "settings-form") {
       const result = await api("settings", "PUT", {
@@ -1053,9 +1204,9 @@ app.addEventListener("submit", async (e) => {
         settings: collect(form, snapshot.state.settings),
       });
       snapshot.state = result.state;
-      dirty = false;
       if (publish) await publishCurrentState();
       draw();
+      dirty = false;
       notify(publish ? "设置已保存并发布" : "设置草稿已保存");
     } else if (form.id === "tags-form") {
       const tags = [...form.querySelectorAll("[data-tag-row]")].map((row) => ({
@@ -1071,9 +1222,9 @@ app.addEventListener("submit", async (e) => {
         slug,
         label,
       ]);
-      dirty = false;
       if (publish) await publishCurrentState();
       tagManager();
+      dirty = false;
       notify(publish ? "标签已保存并发布" : "标签草稿已保存");
     } else if (form.id === "upload") {
       notify("正在上传，请保持页面打开…");
