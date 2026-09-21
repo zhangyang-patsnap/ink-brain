@@ -234,6 +234,21 @@ function field(value, key, prefix) {
     ["fileSize", "packageFormat"].includes(key)
   )
     return `<label class="field"><span>${labels[key]}</span><input value="${escape(value)}" readonly aria-readonly="true"></label>`;
+  // 草稿里的 /media/ 要发布后才可访问，预览走后台的私有附件地址。
+  if (page === "tools" && key === "src" && prefix.startsWith("screenshots.")) {
+    const name = prefix + "." + key;
+    const id = "f-" + name;
+    return `<div class="field wide shot-field">
+      <span class="shot-label">截图图片</span>
+      <input type="hidden" name="${name}" value="${escape(value)}">
+      ${value ? `<img class="shot-preview" src="${escape(shotPreview(value))}" alt="">` : '<p class="shot-empty">尚未上传图片。</p>'}
+      <label class="shot-pick" for="${id}">
+        <input type="file" id="${id}" data-shot-upload="${prefix}" accept=".png,.jpg,.jpeg,.webp">
+        <span>${value ? "更换图片" : "选择或拖入图片"}</span>
+      </label>
+      <small>支持 PNG、JPEG、WebP，最多 256 MB。上传后自动填入地址。</small>
+    </div>`;
+  }
   if (page === "projects" && key === "documentation" && !prefix)
     return `<div class="project-documentation-editor"><label class="field" for="f-documentation"><span>文档说明 · Markdown</span><textarea id="f-documentation" name="documentation" class="project-markdown" placeholder="## 快速开始&#10;&#10;在这里编写项目文档…">${escape(value)}</textarea><small>支持标题、列表、链接、图片、表格和代码块。</small></label><div class="toolbar markdown-toolbar"><button type="button" data-action="project-markdown">预览文档</button></div><div id="project-markdown-preview" class="body-preview" hidden></div></div>`;
   const name = prefix ? prefix + "." + key : key,
@@ -386,6 +401,36 @@ async function receiveSkillFile(file) {
     controls.forEach((control,index) => { control.disabled = wasDisabled[index]; });
   }
 }
+// 上传截图并写回对应的 screenshots 项。path 形如 "screenshots.0"。
+async function receiveShot(path, file) {
+  if (!/\.(png|jpe?g|webp)$/i.test(file.name))
+    throw Error("请选择 PNG、JPEG 或 WebP 图片");
+  if (file.size > 256 * 1024 * 1024) throw Error("图片不能超过 256 MB");
+  capture();
+  const controls = [...app.querySelectorAll("button,input,select,textarea")];
+  const wasDisabled = controls.map((control) => control.disabled);
+  controls.forEach((control) => {
+    control.disabled = true;
+  });
+  notify("正在上传截图…");
+  try {
+    const asset = await uploadAsset(file);
+    const shot = get(editing.data, path);
+    shot.src = asset.url;
+    // 描述为空时先用文件名占位，提醒作者补一句真正的描述。
+    if (!shot.alt?.trim()) shot.alt = asset.name.replace(/\.[^.]+$/, "");
+    dirty = true;
+    editor();
+    notify("截图已上传，请补充图片描述。");
+  } finally {
+    controls.forEach((control, index) => {
+      control.disabled = wasDisabled[index];
+    });
+  }
+}
+// 站内 /media/ 路径改写成后台附件地址，未发布的图片也能预览；外部 HTTPS 地址原样使用。
+const shotPreview = (value) =>
+  value.startsWith("/media/") ? value.replace("/media/", "/admin/api/assets/") : value;
 const skillSize = (bytes) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${(bytes / 1024).toFixed(1)} KB`;
 const skillCategoryOptions = [['development','开发与调试'],['documents','文档与报告'],['design','设计与前端'],['data','数据与分析'],['operations','运维与观测'],['other','其他能力']];
@@ -946,7 +991,7 @@ app.addEventListener("input", (e) => {
 });
 for (const type of ["dragover", "dragleave", "drop"])
   app.addEventListener(type, async (e) => {
-    const drop = e.target.closest?.(".skill-drop");
+    const drop = e.target.closest?.(".skill-drop, .shot-pick");
     if (!drop) return;
     e.preventDefault();
     drop.classList.toggle("dragging", type === "dragover");
@@ -954,7 +999,9 @@ for (const type of ["dragover", "dragleave", "drop"])
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
     try {
-      await receiveSkillFile(file);
+      const shot = drop.querySelector("[data-shot-upload]")?.dataset.shotUpload;
+      if (shot) await receiveShot(shot, file);
+      else await receiveSkillFile(file);
     } catch (error) {
       notify(error.message, true);
     }
@@ -968,6 +1015,10 @@ app.addEventListener("change", async (e) => {
     }
     if (e.target.id === "topic-kind") {
       topicCandidates();
+      return;
+    }
+    if (e.target.dataset.shotUpload && e.target.files?.[0]) {
+      await receiveShot(e.target.dataset.shotUpload, e.target.files[0]);
       return;
     }
     if (e.target.id === "tool-package-upload" && e.target.files?.[0]) {
