@@ -1,5 +1,5 @@
 ---
-import { siteStats, siteMeta } from '../data/site';
+import { siteMeta } from '../data/site';
 ---
 
 <footer class="site-footer">
@@ -19,11 +19,14 @@ import { siteStats, siteMeta } from '../data/site';
       <a href="/about/">关于</a>
       <a href="/rss.xml">RSS</a>
     </nav>
-    <div class="footer-stat" aria-label={`${siteStats.totalVisits.label}：${siteStats.totalVisits.value}，示例数据`}>
-      <span class="footer-stat-label">{siteStats.totalVisits.label}</span>
-      <strong>{siteStats.totalVisits.value}</strong>
-      <span class="footer-stat-status">{siteStats.totalVisits.status}</span>
+    <div class="footer-stat" aria-label="累计访客">
+      <span class="footer-stat-label">累计访客</span>
+      <strong data-total-visitors>—</strong>
     </div>
     <p class="footer-meta">Built with clarity.<br />Written with evidence.</p>
   </div>
 </footer>
+<script>
+  import { hydrateSiteTotal } from '../lib/visitor-stats';
+  void hydrateSiteTotal();
+</script>

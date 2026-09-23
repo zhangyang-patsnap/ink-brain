@@ -36,6 +36,7 @@ const publishedAt = new Intl.DateTimeFormat('zh-CN', {
           <span class="reader-author">{siteMeta.author}</span>
           <time datetime={article.data.publishedAt.toISOString()}>{publishedAt}</time>
           <span>约 {article.data.readingMinutes} 分钟阅读</span>
+          <span data-article-views={article.id}></span>
           {article.data.tags.length > 0 && (
             <span class="reader-tags" aria-label="文章标签">
               {article.data.tags.map((tag) => (
@@ -64,6 +65,8 @@ const publishedAt = new Intl.DateTimeFormat('zh-CN', {
   </div>
   <script>
     import { setupArticleToc } from '../../lib/article-toc';
+    import { hydrateArticleViews } from '../../lib/visitor-stats';
     setupArticleToc();
+    void hydrateArticleViews();
   </script>
 </BaseLayout>

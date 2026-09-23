@@ -106,6 +106,18 @@ svg {
   max-width: 100%;
 }
 
+.reader-body img[role="button"],
+.project-readme img[role="button"],
+.skill-document img[role="button"] {
+  transition: opacity 0.15s ease;
+}
+
+.reader-body img[role="button"]:hover,
+.project-readme img[role="button"]:hover,
+.skill-document img[role="button"]:hover {
+  opacity: 0.88;
+}
+
 h1,
 h2,
 h3,
@@ -348,11 +360,6 @@ h3 {
 .footer-stat strong {
   font-size: 1.12rem;
   font-weight: 400;
-}
-
-.footer-stat-status {
-  color: var(--accent);
-  font-size: 0.58rem;
 }
 
 .footer-meta {

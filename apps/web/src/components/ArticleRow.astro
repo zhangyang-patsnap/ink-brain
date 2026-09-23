@@ -28,7 +28,12 @@ const date = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit
     </div>
     <div class="article-row-foot">
       <span>{article.data.readingMinutes} 分钟阅读</span>
+      <span data-article-views={article.id}></span>
       <ArrowLink href={`/writing/${article.id}/`} label="阅读全文" />
     </div>
   </div>
 </article>
+<script>
+  import { hydrateArticleViews } from '../lib/visitor-stats';
+  void hydrateArticleViews();
+</script>

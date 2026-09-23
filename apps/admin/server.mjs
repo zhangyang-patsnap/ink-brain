@@ -18,6 +18,7 @@ import {
 } from "./schema.mjs";
 import { createPublisher } from "./publisher.mjs";
 import { inspectSkillPackage } from "./skill-package.mjs";
+import { createStats } from "./stats.mjs";
 
 // 校验失败要说清楚是哪个字段、超了多少，而不是把 Zod 的原文抛给作者。
 const fieldNames = {
@@ -77,6 +78,23 @@ const extensions = [
   ".markdown",
   ".skill",
 ];
+// 明显的爬虫和脚本 UA，不计入访问统计；没有 UA 的请求同样不计入。
+const botUserAgent =
+  /bot|spider|crawler|slurp|facebookexternalhit|bingpreview|curl\/|wget\/|python-requests|go-http-client|headlesschrome/i;
+// trustProxy 关闭时始终使用直连套接字地址；开启时取 X-Forwarded-For 最右侧一段，
+// 即直连反代自己追加的那一跳，避免客户端伪造左侧字段。仅在确认所有外部流量
+// 必须经过唯一受控反代、且该反代不可被绕过直连时才能开启。
+function clientIp(req, trustProxy) {
+  if (trustProxy) {
+    const header = req.headers["x-forwarded-for"];
+    if (typeof header === "string" && header.trim()) {
+      const parts = header.split(",").map((part) => part.trim());
+      const last = parts[parts.length - 1];
+      if (last) return last;
+    }
+  }
+  return req.socket.remoteAddress ?? "";
+}
 export async function createApp(options = {}) {
   const host = options.host ?? process.env.ADMIN_HOST ?? "127.0.0.1";
   const port = options.port ?? Number(process.env.ADMIN_PORT ?? 4322);
@@ -111,6 +129,9 @@ export async function createApp(options = {}) {
     siteUrl: process.env.SITE_URL ?? origin,
     buildOverride: options.buildOverride,
   });
+  const trustProxy =
+    options.trustProxy ?? process.env.ADMIN_TRUST_PROXY === "1";
+  const stats = await createStats({ dir, now: options.now });
   const app = express();
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -128,6 +149,29 @@ export async function createApp(options = {}) {
         "Content-Security-Policy":
           "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data: blob:; frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'",
       });
+    next();
+  });
+  // 只统计游客可见的公开 HTML 页面：非 GET、明显爬虫或空 UA、后台与统计接口本身、
+  // 以及非 200 或非 HTML 的响应（包括伪造文章地址触发的 404）一律不计入。
+  app.use((req, res, next) => {
+    const ua = req.get("user-agent") ?? "";
+    if (
+      req.method === "GET" &&
+      !req.path.startsWith("/admin") &&
+      !req.path.startsWith("/api/") &&
+      ua &&
+      !botUserAgent.test(ua)
+    ) {
+      const ip = clientIp(req, trustProxy);
+      const requestPath = req.path;
+      res.on("finish", () => {
+        if (
+          res.statusCode === 200 &&
+          (res.get("content-type") ?? "").includes("text/html")
+        )
+          stats.recordVisit({ ip, ua, path: requestPath });
+      });
+    }
     next();
   });
   app.use("/admin/api", express.json({ limit: "2mb" }));
@@ -453,6 +497,20 @@ export async function createApp(options = {}) {
   app.get("/admin/api/build", (req, res) =>
     res.json({ job: publisher.status(), active: publisher.current() }),
   );
+  // 公开只读统计接口，供访客页面读取；不需要鉴权，也不产生任何副作用。
+  app.get("/api/stats/summary", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json(stats.summary());
+  });
+  app.get("/api/stats/articles", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const ids = String(req.query.ids ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => slug.safeParse(id).success)
+      .slice(0, 100);
+    res.json(stats.articleVisitors(ids));
+  });
   app.use(
     "/admin",
     express.static(path.join(here, "public"), {
@@ -500,7 +558,7 @@ export async function createApp(options = {}) {
           : err.message;
     res.status(status).json({ error });
   });
-  return { app, store, publisher, dir, origin, host, port };
+  return { app, store, publisher, stats, dir, origin, host, port };
 }
 if (
   process.argv[1] &&
@@ -522,5 +580,7 @@ if (
     ),
   );
   for (const signal of ["SIGTERM", "SIGINT"])
-    process.on(signal, () => server.close(() => process.exit(0)));
+    process.on(signal, () =>
+      server.close(() => service.stats.close().then(() => process.exit(0))),
+    );
 }

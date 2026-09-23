@@ -96,7 +96,9 @@
 .project-readme table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
 .project-readme :is(td,th) { padding: 8px 12px; border: var(--rule); min-width: 110px; text-align: left; }
 .project-readme th { background: var(--paper-deep); }
-.project-readme img { display: block; max-width: 100%; height: auto; margin: 16px auto; }
+/* width:auto overrides any width/height HTML attribute on the img so it never
+   renders larger than its actual pixel size — only max-width shrinks it to fit. */
+.project-readme img { display: block; max-width: 100%; width: auto; height: auto; margin: 16px auto; }
 .project-readme .mermaid-diagram img, body:has(.project-sheet) .diagram-viewer img { background: #fafafa; }
 .project-readme hr { border: 0; border-top: var(--rule); margin: 22px 0; }
 .project-readme-empty { margin: 0; color: var(--ink-soft); font-size: 14px; }

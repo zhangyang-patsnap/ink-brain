@@ -198,6 +198,7 @@ export const settingsSchema = z.object({
   title,
   description: title,
   author: title,
+  wechat: title,
   tagline: title,
   intro: text,
   bio: text,

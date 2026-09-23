@@ -36,7 +36,10 @@
 .reader-body :not(pre) > code { padding: 2px 4px; background: var(--paper-deep); border-radius: 3px; }
 .reader-body pre { max-width: 100%; overflow-x: auto; padding: 17px 20px; margin: 20px 0; background: var(--paper-deep); color: var(--ink); border: var(--rule); border-radius: 5px; font: 13px/1.75 var(--mono); }
 .reader-body pre code { font-size: inherit; overflow-wrap: normal; }
-.reader-body img { max-width: 100%; height: auto; margin: 20px auto; }
+/* width:auto overrides any width/height HTML attribute on the img (a leftover
+   from a pasted <img> tag or the editor's size prompt) so it never renders
+   larger than its actual pixel size — only max-width shrinks it to fit. */
+.reader-body img { max-width: 100%; width: auto; height: auto; margin: 20px auto; }
 .reader-body figure { max-width: 100%; margin: 22px 0; }
 .reader-body figcaption { margin-top: 10px; font: 12px/1.7 var(--sans); color: var(--ink-soft); text-align: center; }
 .reader-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 20px 0; font: 14px/1.75 var(--sans); }

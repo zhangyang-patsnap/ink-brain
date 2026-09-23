@@ -1,14 +1,6 @@
 import settings from './settings.json';
 export const siteMeta = settings;
 
-export const siteStats = {
-  totalVisits: {
-    label: '累计访问',
-    value: '12,846',
-    status: 'DEMO',
-  },
-} as const;
-
 export const destinations = [
   {
     label: '技术写作',

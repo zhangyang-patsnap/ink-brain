@@ -65,8 +65,9 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
     </main>
     <SiteFooter />
     <script>
-      import { renderDiagrams } from '../lib/mermaid-client.js';
+      import { renderDiagrams, enableImageZoom } from '../lib/mermaid-client.js';
       void renderDiagrams();
+      enableImageZoom();
     </script>
   </body>
 </html>

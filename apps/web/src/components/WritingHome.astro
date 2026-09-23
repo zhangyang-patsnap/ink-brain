@@ -42,6 +42,7 @@ const date = (value: Date) => new Intl.DateTimeFormat('zh-CN', {
           <div class="writing-meta">
             <time datetime={lead.data.publishedAt.toISOString()}>{date(lead.data.publishedAt)}</time>
             <span>{lead.data.readingMinutes} 分钟阅读</span>
+            <span data-article-views={lead.id}></span>
           </div>
         </div>
         <div class="writing-lead-summary">
@@ -61,6 +62,7 @@ const date = (value: Date) => new Intl.DateTimeFormat('zh-CN', {
               <div class="writing-meta">
                 <time datetime={article.data.publishedAt.toISOString()}>{date(article.data.publishedAt)}</time>
                 <span>{article.data.readingMinutes} 分钟阅读</span>
+                <span data-article-views={article.id}></span>
               </div>
               <h3><a href={`/writing/${article.id}/`}>{article.data.title}</a></h3>
               <p class="writing-card-summary">{article.data.summary}</p>
@@ -85,5 +87,7 @@ const date = (value: Date) => new Intl.DateTimeFormat('zh-CN', {
 </div>
 <script>
   import { setupWritingSearch } from '../lib/writing-search';
+  import { hydrateArticleViews } from '../lib/visitor-stats';
   document.querySelectorAll<HTMLElement>('[data-writing-home]').forEach(setupWritingSearch);
+  void hydrateArticleViews();
 </script>

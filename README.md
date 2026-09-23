@@ -52,6 +52,7 @@ calls are unaffected.
 | `ADMIN_PORT` | Listen port, `4322` by default. |
 | `ADMIN_PASSWORD` | Initial password used only when no author exists yet. Change it before exposing the backend. |
 | `SITE_URL` | Address used for canonical, RSS and sitemap output. Defaults to `ADMIN_ORIGIN`. |
+| `ADMIN_TRUST_PROXY` | Set to `1` to let visitor analytics trust the last `X-Forwarded-For` hop for the real client IP. Only enable this when every external request is guaranteed to pass through exactly one controlled reverse proxy that cannot be bypassed — otherwise a visitor can spoof this header to fabricate visit counts. Defaults to off, using the raw socket address. |
 
 ## Content storage
 

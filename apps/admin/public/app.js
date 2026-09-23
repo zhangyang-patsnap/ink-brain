@@ -92,6 +92,7 @@ const labels = {
   notes: "版本说明",
   downloadUrl: "下载地址",
   author: "作者",
+  wechat: "微信号",
   intro: "首页介绍",
   bio: "关于作者",
 };

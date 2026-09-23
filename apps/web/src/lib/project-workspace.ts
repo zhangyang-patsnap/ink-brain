@@ -1,4 +1,4 @@
-import { renderDiagrams } from './mermaid-client.js';
+import { renderDiagrams, enableImageZoom } from './mermaid-client.js';
 
 const workspace = document.querySelector<HTMLElement>('.project-workspace');
 if (workspace) {
@@ -48,6 +48,7 @@ if (workspace) {
       }
       if (status) status.textContent = `当前项目：${template.dataset.projectName}`;
       void renderDiagrams(display);
+      enableImageZoom(display);
       document.dispatchEvent(new Event('project:changed'));
     }
 
