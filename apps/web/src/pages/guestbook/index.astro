@@ -39,7 +39,7 @@ import PageIntro from '../../components/PageIntro.astro';
   </div>
 </BaseLayout>
 <script>
-  interface Message { id: number; nickname: string; body: string; createdAt: string }
+  interface Message { id: number; nickname: string; body: string; createdAt: string; reply: string; repliedAt: string | null }
   const form = document.querySelector<HTMLFormElement>('#guestbook-form')!;
   const submit = document.querySelector<HTMLButtonElement>('#submit-message')!;
   const formStatus = document.querySelector<HTMLElement>('#form-status')!;
@@ -61,7 +61,14 @@ import PageIntro from '../../components/PageIntro.astro';
         const time = document.createElement('time'); time.dateTime = message.createdAt;
         time.textContent = new Date(message.createdAt).toLocaleDateString('zh-CN');
         const body = document.createElement('p'); body.textContent = message.body;
-        head.append(name, time); li.append(head, body); list.append(li);
+        head.append(name, time); li.append(head, body);
+        if (message.reply) {
+          const reply = document.createElement('div'); reply.className = 'author-reply';
+          const label = document.createElement('strong'); label.textContent = '作者回复';
+          const text = document.createElement('p'); text.textContent = message.reply;
+          reply.append(label, text); li.append(reply);
+        }
+        list.append(li);
       }
       cursor = data.nextCursor; more.hidden = cursor === null;
       listStatus.textContent = list.children.length ? '' : '还没有公开留言，欢迎留下第一句话。';
@@ -121,5 +128,7 @@ import PageIntro from '../../components/PageIntro.astro';
   #messages :global(strong) { overflow-wrap: anywhere; }
   #messages :global(time) { font: 12px var(--mono); color: var(--ink-soft); flex-shrink: 0; }
   #messages :global(p) { white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0 0; }
+  #messages :global(.author-reply) { margin-top: 20px; padding: 16px 20px; border-left: 2px solid var(--accent); background: var(--paper-soft); font-size: 14px; }
+  #messages :global(.author-reply strong) { color: var(--accent); }
   @media (max-width: 760px) { .guestbook-grid { grid-template-columns: 1fr; } .message-compose { order: -1; } }
 </style>

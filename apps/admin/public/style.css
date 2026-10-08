@@ -1698,3 +1698,34 @@ main,
 .guestbook-entry strong { overflow-wrap: anywhere; }
 [data-guestbook-filter][aria-pressed="true"] { text-decoration: underline; font-weight: 700; }
 #guestbook-more[hidden] { display: none; }
+
+.guestbook-reply {
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  overflow: hidden;
+}
+.guestbook-reply > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 18px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.guestbook-reply > summary::-webkit-details-marker { display: none; }
+.guestbook-reply > summary::before { content: '+'; font-size: 18px; font-weight: 400; }
+.guestbook-reply[open] > summary::before { content: '−'; }
+.guestbook-reply[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.guestbook-reply > .field { margin: 0 18px; }
+.guestbook-reply .field textarea { min-height: 128px; }
+.guestbook-reply > .help { margin: 12px 18px; line-height: 1.7; }
+.guestbook-reply-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px 18px; }
+.guestbook-reply-footer .reply-status { margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.guestbook-reply-footer button { flex-shrink: 0; margin-left: auto; color: var(--accent); border-color: var(--accent); font-size: 14px; }
+.guestbook-reply > summary:focus-visible { outline-offset: -4px; }

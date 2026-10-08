@@ -5,7 +5,7 @@
 ## Goals / Non-Goals
 
 Goals: 独立站点留言入口、匿名提交、审核后展示、移动端和明暗主题适配。
-Non-Goals: 文章留言、访客账号、作者回复、邮件通知、富文本、附件、多实例部署。
+Non-Goals: 文章留言、访客账号、邮件通知、富文本、附件、多实例部署。
 
 ## Decisions
 
@@ -29,3 +29,7 @@ Non-Goals: 文章留言、访客账号、作者回复、邮件通知、富文本
 ## Visibility update
 
 访客选择 public/private，默认 public。历史留言保持 public。审核状态与可见性独立：公开列表必须同时满足 approved 和 public；后台审核不可改变 visibility。私密留言同样可审核，但永不公开。SQLite 启动时为旧表增加 visibility 字段。
+
+## Reply and deletion
+
+每条留言保存一条可编辑纯文本作者回复（最多 2000 字，清空可移除）。回复继承留言公开范围和审核状态，不触发审核通过。私密留言回复仅留在后台，当前无访客身份或通知渠道。作者可确认后永久删除留言及回复。新增 PUT reply 和 DELETE 接口复用后台认证与 CSRF。

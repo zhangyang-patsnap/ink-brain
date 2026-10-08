@@ -29,6 +29,11 @@ export function createGuestbook(dir) {
       db.exec("ALTER TABLE messages ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private'))");
     }
   });
+  use(db => {
+    const columns = db.prepare('PRAGMA table_info(messages)').all();
+    if (!columns.some(c => c.name === 'reply')) db.exec("ALTER TABLE messages ADD COLUMN reply TEXT NOT NULL DEFAULT ''");
+    if (!columns.some(c => c.name === 'repliedAt')) db.exec('ALTER TABLE messages ADD COLUMN repliedAt TEXT');
+  });
   fs.chmodSync(file, 0o600);
   return {
     submit(input) {
@@ -40,12 +45,27 @@ export function createGuestbook(dir) {
       });
     },
     list({ status = 'approved', before, privateFields = false } = {}) {
-      statusSchema.parse(status);
+      if (privateFields) z.enum(['all', 'pending', 'approved', 'rejected']).parse(status);
+      else statusSchema.parse(status);
       const cursor = before === undefined ? Number.MAX_SAFE_INTEGER : cursorSchema.parse(before);
-      const fields = privateFields ? '*' : 'id, nickname, body, createdAt';
-      const rows = use(db => db.prepare(`SELECT ${fields} FROM messages WHERE status = ? ${privateFields ? '' : "AND visibility = 'public' AND status = 'approved'"} AND id < ? ORDER BY id DESC LIMIT 21`).all(status, cursor));
+      const fields = privateFields ? '*' : 'id, nickname, body, createdAt, reply, repliedAt';
+      const all = privateFields && status === 'all';
+      const rows = use(db => db.prepare(`SELECT ${fields} FROM messages WHERE ${all ? '1 = 1' : 'status = ?'} ${privateFields ? '' : "AND visibility = 'public' AND status = 'approved'"} AND id < ? ORDER BY id DESC LIMIT 21`).all(...(all ? [cursor] : [status, cursor])));
       const items = rows.slice(0, 20);
       return { items, nextCursor: rows.length > 20 ? items.at(-1).id : null };
+    },
+    reply(id, input) {
+      const messageId = cursorSchema.parse(id);
+      const { reply } = z.object({ reply: z.string().trim().max(2000) }).strict().parse(input);
+      const result = use(db => db.prepare('UPDATE messages SET reply = ?, repliedAt = ? WHERE id = ?').run(reply, reply ? new Date().toISOString() : null, messageId));
+      if (!result.changes) throw Object.assign(new Error('留言不存在'), { status: 404 });
+      return { ok: true };
+    },
+    remove(id) {
+      const messageId = cursorSchema.parse(id);
+      const result = use(db => db.prepare('DELETE FROM messages WHERE id = ?').run(messageId));
+      if (!result.changes) throw Object.assign(new Error('留言不存在'), { status: 404 });
+      return { ok: true };
     },
     moderate(id, input) {
       const messageId = cursorSchema.parse(id);

@@ -196,10 +196,16 @@ export async function createApp(options = {}) {
       : auth.trusted(req, res, () => auth.csrf(req, res, next)),
   );
   app.get("/admin/api/guestbook", (req, res) => {
-    res.json(guestbook.list({ status: req.query.status ?? 'pending', before: req.query.before, privateFields: true }));
+    res.json(guestbook.list({ status: req.query.status ?? 'all', before: req.query.before, privateFields: true }));
   });
   app.patch("/admin/api/guestbook/:id", (req, res) => {
     res.json(guestbook.moderate(req.params.id, req.body));
+  });
+  app.put('/admin/api/guestbook/:id/reply', (req, res) => {
+    res.json(guestbook.reply(req.params.id, req.body));
+  });
+  app.delete('/admin/api/guestbook/:id', (req, res) => {
+    res.json(guestbook.remove(req.params.id));
   });
   app.post("/admin/api/logout", auth.logout);
   app.get("/admin/api/state", async (req, res) => {

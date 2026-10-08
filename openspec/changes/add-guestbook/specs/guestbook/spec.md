@@ -50,3 +50,21 @@ The form SHALL offer 公开 and 不公开, defaulting to 公开. Public API resu
 #### Scenario: Existing messages
 - **WHEN** the database is upgraded from the original schema
 - **THEN** existing messages retain public visibility and their original moderation status
+
+### Requirement: Author reply and deletion
+The administrator SHALL be able to save, edit and clear a plain-text reply, and delete a message after confirmation. Both APIs MUST require author authentication, origin and CSRF checks.
+
+#### Scenario: Reply visibility
+- **WHEN** an author saves a reply
+- **THEN** it is publicly readable only if the parent message is approved and public; private and pending messages remain nonpublic
+
+#### Scenario: Delete message
+- **WHEN** an author confirms deletion
+- **THEN** both message and reply are removed from storage and subsequent public and admin reads
+
+### Requirement: Persistent administrator overview
+The administrator list SHALL default to all messages, with status badges and optional status filters. Moderation SHALL NOT remove a message from the default list.
+
+#### Scenario: Approve in all messages
+- **WHEN** an administrator approves a message in the default view
+- **THEN** the same message remains visible with its updated status until manually deleted

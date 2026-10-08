@@ -39,7 +39,7 @@ test('guestbook moderation, private fields, authorization and durable storage', 
   assert.equal((await req(`/admin/api/guestbook/${id}`, 'PATCH', { status: 'approved' }, auth)).status, 200);
   const approved = await (await req('/api/guestbook')).json();
   assert.equal(approved.items[0].body, payload.body);
-  assert.deepEqual(Object.keys(approved.items[0]).sort(), ['body','createdAt','id','nickname']);
+  assert.deepEqual(Object.keys(approved.items[0]).sort(), ['body','createdAt','id','nickname','repliedAt','reply']);
   assert.equal(createGuestbook(dir).list().items.length, 1);
   assert.equal((await req(`/admin/api/guestbook/${id}`, 'PATCH', { status: 'pending' }, auth)).status, 200);
   assert.equal((await (await req('/api/guestbook')).json()).items.length, 0);
@@ -103,4 +103,48 @@ test('old databases preserve public visibility and migration is repeatable', asy
   db.close();
   assert.equal(createGuestbook(dir).list().items[0].body, '保留');
   assert.equal(createGuestbook(dir).list({privateFields:true}).items[0].visibility, 'public');
+});
+
+test('author replies and deletion require auth and preserve message privacy', async t => {
+  const {req, auth, dir} = await setup(t);
+  const store = createGuestbook(dir);
+  for (const visibility of ['public','private']) store.submit({nickname:'访客',body:'问题',visibility});
+  const messages = store.list({status:'pending',privateFields:true}).items;
+  for (const message of messages) {
+    const url = `/admin/api/guestbook/${message.id}`;
+    assert.equal((await req(url+'/reply','PUT',{reply:'回复'})).status,401);
+    assert.equal((await req(url+'/reply','PUT',{reply:'回复'},{Cookie:auth.Cookie})).status,403);
+    assert.equal((await req(url+'/reply','PUT',{reply:'x'.repeat(2001)},auth)).status,400);
+    assert.equal((await req(url+'/reply','PUT',{reply:'<script>作者回复</script>'},auth)).status,200);
+    assert.equal(store.list().items.length,0);
+    store.moderate(message.id,{status:'approved'});
+    const visible = store.list().items;
+    assert.equal(visible.some(m=>m.id===message.id),message.visibility==='public');
+    const saved = createGuestbook(dir).list({privateFields:true}).items.find(m=>m.id===message.id);
+    assert.equal(saved.reply,'<script>作者回复</script>');
+    assert.ok(saved.repliedAt);
+    assert.equal((await req(url+'/reply','PUT',{reply:''},auth)).status,200);
+    assert.equal((await req(url,'DELETE')).status,401);
+    assert.equal((await req(url,'DELETE',undefined,{Cookie:auth.Cookie})).status,403);
+    assert.equal((await req(url,'DELETE',undefined,{...auth,Origin:'https://evil.example'})).status,403);
+    assert.equal((await req(url,'DELETE',undefined,auth)).status,200);
+    assert.equal(createGuestbook(dir).list({privateFields:true}).items.some(m=>m.id===message.id),false);
+    assert.equal((await req(url+'/reply','PUT',{reply:'不存在'},auth)).status,404);
+    assert.equal((await req(url,'DELETE',undefined,auth)).status,404);
+  }
+});
+
+test('admin default all keeps approved and rejected messages until explicit deletion', async t => {
+  const {req, auth} = await setup(t);
+  await req('/api/guestbook','POST',{nickname:'访客',body:'保留在后台'});
+  const read = async () => (await (await req('/admin/api/guestbook','GET',undefined,auth)).json()).items;
+  const id = (await read())[0].id;
+  for (const status of ['approved','rejected','pending']) {
+    await req(`/admin/api/guestbook/${id}`,'PATCH',{status},auth);
+    assert.equal((await read())[0].id,id);
+    assert.equal((await read())[0].status,status);
+  }
+  assert.equal((await (await req('/api/guestbook?status=all')).json()).items.length,0);
+  await req(`/admin/api/guestbook/${id}`,'DELETE',undefined,auth);
+  assert.equal((await read()).length,0);
 });

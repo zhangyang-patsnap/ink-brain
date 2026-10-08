@@ -1079,17 +1079,17 @@ app.addEventListener("change", async (e) => {
     notify(error.message, true);
   }
 });
-let guestbookStatus = 'pending', guestbookCursor = null, guestbookRequest = 0;
+let guestbookStatus = 'all', guestbookCursor = null, guestbookRequest = 0;
 async function drawGuestbook(append = false) {
   const request = ++guestbookRequest;
   const content = $('#content');
-  if (!append) content.innerHTML = `<section class="card"><p class="help">只有选择公开且审核通过的留言才会展示。不公开的留言审核后也不会展示。</p><div class="toolbar" aria-label="留言筛选">${[['pending','待审核'],['approved','已通过'],['rejected','已拒绝']].map(([value,label]) => `<button data-guestbook-filter="${value}" aria-pressed="${guestbookStatus === value}">${label}</button>`).join('')}</div><p id="guestbook-status" role="status">正在读取留言…</p><div id="guestbook-list"></div><button id="guestbook-more" data-guestbook-more hidden>加载更多</button></section>`;
+  if (!append) content.innerHTML = `<section class="card"><p class="help">只有选择公开且审核通过的留言才会展示。不公开的留言审核后也不会展示。</p><div class="toolbar" aria-label="留言筛选">${[['all','全部留言'],['pending','待审核'],['approved','已通过'],['rejected','已拒绝']].map(([value,label]) => `<button data-guestbook-filter="${value}" aria-pressed="${guestbookStatus === value}">${label}</button>`).join('')}</div><p id="guestbook-status" role="status">正在读取留言…</p><div id="guestbook-list"></div><button id="guestbook-more" data-guestbook-more hidden>加载更多</button></section>`;
   const status = $('#guestbook-status');
   try {
     const data = await api(`guestbook?status=${guestbookStatus}${append && guestbookCursor ? `&before=${guestbookCursor}` : ''}`);
     if (request !== guestbookRequest || page !== 'guestbook' || content !== $('#content')) return;
     const list = $('#guestbook-list');
-    list.insertAdjacentHTML('beforeend', data.items.map(m => `<article class="guestbook-entry"><div class="toolbar"><strong>${escape(m.nickname)}</strong><span class="badge">${m.visibility === 'private' ? '不公开' : '公开'}</span><time>${escape(new Date(m.createdAt).toLocaleString('zh-CN'))}</time></div><p class="guestbook-body">${escape(m.body)}</p><div class="toolbar">${m.status !== 'approved' ? `<button data-guestbook-id="${m.id}" data-guestbook-state="approved">通过审核</button>` : `<button data-guestbook-id="${m.id}" data-guestbook-state="pending">${m.visibility === 'private' ? '撤回审核' : '撤回展示'}</button>`}${m.status !== 'rejected' ? `<button data-guestbook-id="${m.id}" data-guestbook-state="rejected">拒绝</button>` : ''}</div></article>`).join(''));
+    list.insertAdjacentHTML('beforeend', data.items.map(m => `<article class="guestbook-entry"><div class="toolbar"><strong>${escape(m.nickname)}</strong><span class="badge">${m.visibility === 'private' ? '不公开' : '公开'}</span><span class="badge">${{pending:'待审核',approved:'已通过',rejected:'已拒绝'}[m.status]}</span><time>${escape(new Date(m.createdAt).toLocaleString('zh-CN'))}</time></div><p class="guestbook-body">${escape(m.body)}</p><div class="toolbar">${m.status !== 'approved' ? `<button data-guestbook-id="${m.id}" data-guestbook-state="approved">通过审核</button>` : `<button data-guestbook-id="${m.id}" data-guestbook-state="pending">${m.visibility === 'private' ? '撤回审核' : '撤回展示'}</button>`}${m.status !== 'rejected' ? `<button data-guestbook-id="${m.id}" data-guestbook-state="rejected">拒绝</button>` : ''}<button data-guestbook-delete="${m.id}">删除留言</button></div><details class="guestbook-reply"><summary>${m.reply ? '编辑作者回复' : '回复留言'}</summary><label class="field"><span>作者回复</span><textarea id="reply-${m.id}" rows="3" maxlength="2000">${escape(m.reply ?? '')}</textarea></label><p class="help">${m.visibility === 'private' ? '此留言不公开，回复仅保留在后台，访客无法查看。' : '回复随审核通过的留言公开展示；保存回复不会自动通过审核。'} 清空并保存可移除回复。</p><div class="guestbook-reply-footer"><p role="status" class="reply-status"></p><button data-guestbook-reply="${m.id}">保存回复</button></div></details></article>`).join(''));
     guestbookCursor = data.nextCursor;
     $('#guestbook-more').hidden = !guestbookCursor;
     status.textContent = list.children.length ? '' : '当前分类还没有留言。';
@@ -1101,6 +1101,27 @@ app.addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   try {
+    if (b.dataset.guestbookReply) {
+      const id = b.dataset.guestbookReply;
+      const status = b.closest('details').querySelector('.reply-status');
+      b.disabled = true;
+      try {
+        await api(`guestbook/${id}/reply`, 'PUT', { reply: $(`#reply-${id}`).value });
+        status.textContent = '回复已保存';
+      } catch (error) { status.textContent = error.message; }
+      finally { b.disabled = false; }
+      return;
+    }
+    if (b.dataset.guestbookDelete) {
+      if (!confirm('确定删除这条留言及作者回复？删除后无法恢复。')) return;
+      b.disabled = true;
+      try {
+        await api(`guestbook/${b.dataset.guestbookDelete}`, 'DELETE');
+        notify('留言已删除');
+        if (page === 'guestbook') { guestbookCursor = null; await drawGuestbook(); }
+      } finally { b.disabled = false; }
+      return;
+    }
     if (b.dataset.guestbookFilter) {
       guestbookStatus = b.dataset.guestbookFilter; guestbookCursor = null;
       await drawGuestbook();
